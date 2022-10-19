@@ -663,7 +663,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     Hgamma = hessian(LikFG1,parhatG,Y=Y,Delta=Delta,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
     
-    # Select part of variance matrix pertaining to beta, eta, var1, var2 and rho
+    # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta
     # (i.e. H_delta).
     H = Hgamma[1:length(initd),1:length(initd)]
     HI = ginv(H)
@@ -950,7 +950,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
   RMSE = sqrt(apply((results[,1:(totparl+4)]-par0m)^2,2,mean))
   
   # Statistics on the parameter standard deviations
-  MSD  = apply(results[,(totparl+4):(2*totparl+6)],2, mean)
+  MSD  = apply(results[,((totparl+4)+1):(2*(totparl+4))],2, mean)
   
   # Statistics on the parameter CI's: for each parameter, check how many times the
   # true value is contained in the estimated confidence interval. We divide by
@@ -1011,7 +1011,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
   #
   
   par0 = c(parN[[1]],parN[[2]],parN[[3]])
-  par0m = matrix(par0,nsim,(totparl+3),byrow=TRUE)
+  par0m = matrix(par0,nsim,(totparl+4),byrow=TRUE)
   # par0:
   # - [1:4] : beta
   # - [5:8] : eta
@@ -1028,7 +1028,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
   RMSE = sqrt(apply((results2[,1:(totparl+4)]-par0m)^2,2,mean))
   
   # Statistics on the standard deviation estimates
-  MSD  = apply(results2[,(totparl+4):(2*totparl+6)],2, mean)
+  MSD  = apply(results2[,((totparl+4)+1):(2*(totparl+4))],2, mean)
   
   # Statistics on the parameter CI's: for each parameter, check how many times the
   # true value is contained in the estimated confidence interval. We divide by
@@ -1063,7 +1063,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
   RMSE = sqrt(apply((results3[,1:(totparl+3)]-par0m)^2,2,mean))
   
   # Statistics on the standard deviation estimates
-  MSD  = apply(results3[,(totparl+4):(2*(totparl+3))],2, mean)
+  MSD  = apply(results3[,((totparl+3)+1):(2*(totparl+3))],2, mean)
   
   CP = rep(0,totparl+3)
   datacp = results3[,(2*(totparl+3) + 1):(4*(totparl+3))]
@@ -1132,7 +1132,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
   ## Results of model with estimated V but independence
   
   colnames(sum3) = c("Bias","ESD","ASE","RMSE","CR")
-  rownames(sum3) = namescoef[1:length(namescoef)-1]
+  rownames(sum3) = c(namescoef[1:(length(namescoef)-2)],namescoef[length(namescoef)])
   xtab3 = xtable(sum3)
   digits(xtab3) = rep(3,6)
   header= c("sample size",n)
