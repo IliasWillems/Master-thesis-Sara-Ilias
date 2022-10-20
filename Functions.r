@@ -151,7 +151,7 @@ LikF = function(par,Y,Delta,M){
   
   z1 = (transY-(M%*%beta))/sigma1 # b_T
   z2 = ((1-(rho*sigma2/sigma1))*transY-(M%*%eta-rho*(sigma2/sigma1)*(M%*%beta)))/(sigma2*((1-rho^2)^0.5)) #  term within Phi for T
-  z3 = (Y-(M%*%eta))/sigma2 # b_C
+  z3 = (transY-(M%*%eta))/sigma2 # b_C
   z4 = ((1-(rho*sigma1/sigma2))*transY-(M%*%beta-rho*(sigma1/sigma2)*(M%*%eta)))/(sigma1*(1-rho^2)^0.5) #  term within Phi for C
   tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2)))^Delta)*((1/sigma2)*dnorm(z3)*(1-pnorm(z4)))^(1-Delta)*DtransY # likelihood
   p1 = pmax(tot,1e-100)   
