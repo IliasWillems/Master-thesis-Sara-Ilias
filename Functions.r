@@ -1,5 +1,4 @@
 
-
 ######################### functions Yeo-Johnson ################################
 
 log_transform = function(y)   
@@ -19,9 +18,7 @@ YJtrans = function(y,theta) # Yeo-Johnson transformation
   sg = y>=0 
   if (theta==0) {temp = log_transform(y+1)*sg+(1-sg)*(0.5-0.5*(y-1)^2)} 
   if (theta==2) {temp = sg*(-0.5+0.5*(y+1)^2)-log_transform(-y+1)*(1-sg)} 
-  if ((theta!=0) & (theta!=2)) {temp = 
-    sg*(power_transform(y+1,theta)-1)/theta+(1-sg)*
-    (1-power_transform(-y+1,2-theta))/(2-theta)} 
+  if ((theta!=0) & (theta!=2)) {temp = sg*(power_transform(y+1,theta)-1)/theta+(1-sg)*(1-power_transform(-y+1,2-theta))/(2-theta)} 
   return(temp) 
 } 
 
@@ -30,9 +27,7 @@ IYJtrans = function(y,theta) # Inverse of Yeo-Johnson transformation
   sg = y>=0 
   if (theta==0) {temp =(exp(y)-1)*sg+(1-sg)*(1-power_transform(-2*y+1,0.5))} 
   if (theta==2) {temp = sg*(-1+power_transform(2*y+1,0.5))+(1-exp(-y))*(1-sg)} 
-  if ((theta!=0) & (theta!=2)) {temp = 
-    sg*(power_transform(abs(theta)*y+1,1/theta)-1)
-  +(1-sg)*(1-power_transform(1-(2-theta)*y,1/(2-theta)))} 
+  if ((theta!=0) & (theta!=2)) {temp = sg*(power_transform(abs(theta)*y+1,1/theta)-1)+(1-sg)*(1-power_transform(1-(2-theta)*y,1/(2-theta)))} 
   return(temp) 
 } 
 
@@ -2408,6 +2403,3 @@ SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta) {
   print.xtable(xtab3,file=paste0("YJ_IndEstV21_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   print(xtab3, add.to.row=addtorow, include.colnames=TRUE)
 }
-
-
-
