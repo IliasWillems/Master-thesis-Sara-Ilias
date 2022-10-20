@@ -23,7 +23,7 @@ for(l in samsize)
   myseed = 876661
   message("sample size = ",l)
   SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta) # Design 1
-  SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta) # Design 2
+  SimulationCI12_SaraIlias(l,nsim,myseed, init.value.theta) # Design 2
   SimulationCI21_SaraIlias(l,nsim,myseed, init.value.theta) # Design 3
   SimulationCI22_SaraIlias(l,nsim,myseed,init.value.theta) # Design 4
 }
