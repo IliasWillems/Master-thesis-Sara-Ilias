@@ -73,10 +73,7 @@ dat.sim.reg = function(n,par,iseed,Zbin,Wbin){
   if (Zbin==2) {  # nu is standard logistic
     V=rlogis(n)
     Z = as.matrix(as.numeric(XandW%*%gamma-V>0))
-    realV=(1-Z)*((1+exp(XandW%*%gamma))*log(1+exp(XandW%*%gamma))
-                -(XandW%*%gamma)*exp(XandW%*%gamma))
-                -Z*((1+exp(-(XandW%*%gamma)))*log(1+exp(-(XandW%*%gamma)))
-                +(XandW%*%gamma)*exp(-(XandW%*%gamma)))
+    realV=(1-Z)*((1+exp(XandW%*%gamma))*log(1+exp(XandW%*%gamma))-(XandW%*%gamma)*exp(XandW%*%gamma))-Z*((1+exp(-(XandW%*%gamma)))*log(1+exp(-(XandW%*%gamma)))+(XandW%*%gamma)*exp(-(XandW%*%gamma)))
   } else if (Zbin==1) {# nu is standard normal
     V=rnorm(n,0,2)
     Z = XandW%*%gamma+V
