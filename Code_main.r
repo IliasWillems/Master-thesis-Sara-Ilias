@@ -23,7 +23,7 @@ for(l in samsize)
   myseed = 876661
   message("sample size = ",l)
   SimulationCI11(l,nsim,myseed, init.value.theta) # Design 1
-  # SimulationCI12(l,nsim,myseed) # Design 2
+  SimulationCI12(l,nsim,myseed) # Design 2
   # SimulationCI21(l,nsim,myseed) # Design 3
   # SimulationCI22(l,nsim,myseed) # Design 4
 }
