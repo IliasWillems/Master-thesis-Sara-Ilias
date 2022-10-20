@@ -1,5 +1,3 @@
-
-
 ######################### functions Yeo-Johnson ################################
 
 log_transform = function(y)   
@@ -19,9 +17,7 @@ YJtrans = function(y,theta) # Yeo-Johnson transformation
   sg = y>=0 
   if (theta==0) {temp = log_transform(y+1)*sg+(1-sg)*(0.5-0.5*(y-1)^2)} 
   if (theta==2) {temp = sg*(-0.5+0.5*(y+1)^2)-log_transform(-y+1)*(1-sg)} 
-  if ((theta!=0) & (theta!=2)) {temp = 
-    sg*(power_transform(y+1,theta)-1)/theta+(1-sg)*
-    (1-power_transform(-y+1,2-theta))/(2-theta)} 
+  if ((theta!=0) & (theta!=2)) {temp = sg*(power_transform(y+1,theta)-1)/theta+(1-sg)*(1-power_transform(-y+1,2-theta))/(2-theta)} 
   return(temp) 
 } 
 
@@ -30,9 +26,7 @@ IYJtrans = function(y,theta) # Inverse of Yeo-Johnson transformation
   sg = y>=0 
   if (theta==0) {temp =(exp(y)-1)*sg+(1-sg)*(1-power_transform(-2*y+1,0.5))} 
   if (theta==2) {temp = sg*(-1+power_transform(2*y+1,0.5))+(1-exp(-y))*(1-sg)} 
-  if ((theta!=0) & (theta!=2)) {temp = 
-    sg*(power_transform(abs(theta)*y+1,1/theta)-1)
-  +(1-sg)*(1-power_transform(1-(2-theta)*y,1/(2-theta)))} 
+  if ((theta!=0) & (theta!=2)) {temp = sg*(power_transform(abs(theta)*y+1,1/theta)-1)+(1-sg)*(1-power_transform(1-(2-theta)*y,1/(2-theta)))} 
   return(temp) 
 } 
 
@@ -79,9 +73,9 @@ dat.sim.reg = function(n,par,iseed,Zbin,Wbin){
     V=rlogis(n)
     Z = as.matrix(as.numeric(XandW%*%gamma-V>0))
     realV=(1-Z)*((1+exp(XandW%*%gamma))*log(1+exp(XandW%*%gamma))
-                -(XandW%*%gamma)*exp(XandW%*%gamma))
-                -Z*((1+exp(-(XandW%*%gamma)))*log(1+exp(-(XandW%*%gamma)))
-                +(XandW%*%gamma)*exp(-(XandW%*%gamma)))
+                 -(XandW%*%gamma)*exp(XandW%*%gamma))
+    -Z*((1+exp(-(XandW%*%gamma)))*log(1+exp(-(XandW%*%gamma)))
+        +(XandW%*%gamma)*exp(-(XandW%*%gamma)))
   } else if (Zbin==1) {# nu is standard normal
     V=rnorm(n,0,2)
     Z = XandW%*%gamma+V
@@ -100,7 +94,7 @@ dat.sim.reg = function(n,par,iseed,Zbin,Wbin){
   d1 = as.numeric(Y==T) # censoring indicator
   Y = IYJtrans(Y,sd[4]) # observed time
   data = cbind(Y,d1,M,realV) # data consisting of observed time,
-                            # censoring indicator, all data and the control function
+  # censoring indicator, all data and the control function
   
   return(data)
 }
@@ -156,7 +150,7 @@ LikF = function(par,Y,Delta,M){
   
   z1 = (transY-(M%*%beta))/sigma1 # b_T
   z2 = ((1-(rho*sigma2/sigma1))*transY-(M%*%eta-rho*(sigma2/sigma1)*(M%*%beta)))/(sigma2*((1-rho^2)^0.5)) #  term within Phi for T
-  z3 = (Y-(M%*%eta))/sigma2 # b_C
+  z3 = (transY-(M%*%eta))/sigma2 # b_C
   z4 = ((1-(rho*sigma1/sigma2))*transY-(M%*%beta-rho*(sigma1/sigma2)*(M%*%eta)))/(sigma1*(1-rho^2)^0.5) #  term within Phi for C
   tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2)))^Delta)*((1/sigma2)*dnorm(z3)*(1-pnorm(z4)))^(1-Delta)*DtransY # likelihood
   p1 = pmax(tot,1e-100)   
@@ -386,7 +380,7 @@ LikFNT = function(par,Y,Delta,M){
   sigma1 = par[l+1]
   sigma2 = par[l+2]
   rho = par[l+3]
-
+  
   z1 = (Y-(M%*%beta))/sigma1 # b_T
   z2 = ((1-(rho*sigma2/sigma1))*Y-(M%*%eta-rho*(sigma2/sigma1)*(M%*%beta)))/(sigma2*((1-rho^2)^0.5)) #  term within Phi for T
   z3 = (Y-(M%*%eta))/sigma2 # b_C
@@ -425,7 +419,7 @@ LikFNTG1 = function(par,Y,Delta,M){
   W=as.matrix(M[,k+2])
   XandW=as.matrix(cbind(X,W))
   Vest=Z-XandW%*%gamma
-
+  
   
   # likelihood for estimated parameters theta(beta,eta,alpha, lambda, sigma,rho, theta) and gamma
   z1 = (Y-(X%*%beta+Z*alphaT+Vest*lambdaT))/sigma1
@@ -612,7 +606,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     # Confidence interval for theta
     
-    use.fisher.z <- TRUE
+    use.fisher.z <- FALSE
     
     if (use.fisher.z) {
       z1theta <- 0.5*log((1+parhatE[length(parhatE)])/(1-parhatE[length(parhatE)]))
