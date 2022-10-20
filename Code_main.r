@@ -24,6 +24,6 @@ for(l in samsize)
   message("sample size = ",l)
   SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta) # Design 1
   SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta) # Design 2
-  # SimulationCI21(l,nsim,myseed) # Design 3
-  # SimulationCI22(l,nsim,myseed) # Design 4
+  SimulationCI21(l,nsim,myseed) # Design 3
+  SimulationCI22(l,nsim,myseed) # Design 4
 }
