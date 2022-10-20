@@ -19,11 +19,11 @@ samsize= c(250) #c(250, 500, 1000)
 
 for(l in samsize)
 {
-  nsim = 1000
+  nsim = 10
   myseed = 876661
   message("sample size = ",l)
   SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta) # Design 1
   SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta) # Design 2
-  SimulationCI21(l,nsim,myseed) # Design 3
-  SimulationCI22(l,nsim,myseed) # Design 4
+  SimulationCI21_SaraIlias(l,nsim,myseed, init.value.theta) # Design 3
+  SimulationCI22_SaraIlias(l,nsim,myseed,init.value.theta) # Design 4
 }

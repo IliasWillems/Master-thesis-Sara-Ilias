@@ -480,8 +480,7 @@ LikFNTG2 = function(par,Y,Delta,M){
 #         theta-hat +/- 1.96 se(theta-hat).
 #     Shouldn't we impose CI(theta) \subset [0,2] (using, f.e. fisher-z transf)?
 #
-#     --> IMPORTANT: The transformation as it is implemented now is wrong.
-#         An appropriate transformation does not exist?
+#     --> An appropriate transformation does not exist?
 #
 #   - I didn't change anything to the code to compute the variances on lines
 #     ~ 671 - 730 (kan zijn dat de lijnnummers niet meer exact overeen komen
@@ -613,23 +612,8 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     # Confidence interval for theta
     
-    use.fisher.z <- TRUE
-    
-    if (use.fisher.z) {
-      z1theta <- 0.5*log((1+parhatE[length(parhatE)])/(1-parhatE[length(parhatE)]))
-      se1theta_z <- (1/(1-parhatE[length(parhatE)]^2))*se1[length(parhatE)]
-      z1theta_l <- z1theta-1.96*(se1theta_z)
-      z1theta_u <- z1theta+1.96*(se1theta_z)
-      
-      # Back transform
-      
-      r1theta_l <- (exp(2*z1theta_l)-1)/(exp(2*z1theta_l)+1)      
-      r1theta_u <- (exp(2*z1theta_u)-1)/(exp(2*z1theta_u)+1)
-      
-    } else {
-      r1theta_l <- parhatE[length(parhatE)] - 1.96 * se1[length(parhatE)]
-      r1theta_u <- parhatE[length(parhatE)] + 1.96 * se1[length(parhatE)]
-    }
+    r1theta_l <- parhatE[length(parhatE)] - 1.96 * se1[length(parhatE)]
+    r1theta_u <- parhatE[length(parhatE)] + 1.96 * se1[length(parhatE)]
     
     # Matrix of all the confidence intervals
     EC2 = cbind(matrix(c(parhatE[1:(totparl-2)]-1.96*(se1)[1:(totparl-2)],S1_l,S2_l,r1_l, r1theta_l),ncol=1),
@@ -758,21 +742,8 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     # Confidence interval for theta
     
-    if (use.fisher.z) {
-      ztheta <- 0.5*log((1+parhat[length(parhat)])/(1-parhat[length(parhat)]))
-      setheta_z <- (1/(1-parhat[length(parhat)]^2))*se[length(parhat)]
-      ztheta_l <- ztheta-1.96*(setheta_z)
-      ztheta_u <- ztheta+1.96*(setheta_z)
-      
-      # Back transform
-      
-      rtheta_l <- (exp(2*ztheta_l)-1)/(exp(2*ztheta_l)+1)      
-      rtheta_u <- (exp(2*ztheta_u)-1)/(exp(2*ztheta_u)+1)
-      
-    } else {
-      rtheta_l <- parhat[length(parhat)] - 1.96 * se[length(parhat)]
-      rtheta_u <- parhat[length(parhat)] + 1.96 * se[length(parhat)]
-    }
+    rtheta_l <- parhat[length(parhat)] - 1.96 * se[length(parhat)]
+    rtheta_u <- parhat[length(parhat)] + 1.96 * se[length(parhat)]
     
     # Matrix with all confidence intervals
     EC1 = cbind(matrix(c(parhat[1:totparl]-1.96*(se[1:totparl]),s1_l,s2_l,r_l,rtheta_l),ncol=1),
@@ -828,22 +799,9 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     rre_u = (exp(2*ztre_u)-1)/(exp(2*ztre_u)+1)
     
     # Confidence interval for theta
-    
-    if (use.fisher.z) {
-      zretheta <- 0.5*log((1+parhatre[length(parhatre)])/(1-parhatre[length(parhatre)]))
-      seretheta_z <- (1/(1-parhatre[length(parhatre)]^2))*sere[length(parhatre)]
-      zretheta_l <- zretheta-1.96*(seretheta_z)
-      zretheta_u <- zretheta+1.96*(seretheta_z)
-      
-      # Back transform
-      
-      rretheta_l <- (exp(2*zretheta_l)-1)/(exp(2*zretheta_l)+1)      
-      rretheta_u <- (exp(2*zretheta_u)-1)/(exp(2*zretheta_u)+1)
-      
-    } else {
-      rretheta_l <- parhatre[length(parhatre)] - 1.96 * sere[length(parhatre)]
-      rretheta_u <- parhatre[length(parhatre)] + 1.96 * sere[length(parhatre)]
-    }
+
+    rretheta_l <- parhatre[length(parhatre)] - 1.96 * sere[length(parhatre)]
+    rretheta_u <- parhatre[length(parhatre)] + 1.96 * sere[length(parhatre)]
     
     EC3 = cbind(matrix(c(parhatre[1:totparl]-1.96*(sere[1:totparl]),s1re_l,s2re_l,rre_l,rretheta_l),ncol=1),
                 matrix(c(parhatre[1:totparl]+1.96*(sere[1:totparl]),s1re_u,s2re_u,rre_u,rretheta_u), ncol=1))
@@ -900,21 +858,8 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     # Confidence interval for theta
     
-    if (use.fisher.z) {
-      zItheta <- 0.5*log((1+parhat1[length(parhat1)])/(1-parhat1[length(parhat1)]))
-      seItheta_z <- (1/(1-parhat1[length(parhat1)]^2))*seI[length(parhat1)]
-      zItheta_l <- zItheta-1.96*(seItheta_z)
-      zItheta_u <- zItheta+1.96*(seItheta_z)
-      
-      # Back transform
-      
-      rItheta_l <- (exp(2*zItheta_l)-1)/(exp(2*zItheta_l)+1)      
-      rItheta_u <- (exp(2*zItheta_u)-1)/(exp(2*zItheta_u)+1)
-      
-    } else {
-      rItheta_l <- parhat1[length(parhat1)] - 1.96 * seI[length(parhat1)]
-      rItheta_u <- parhat1[length(parhat1)] + 1.96 * seI[length(parhat1)]
-    }
+    rItheta_l <- parhat1[length(parhat1)] - 1.96 * seI[length(parhat1)]
+    rItheta_u <- parhat1[length(parhat1)] + 1.96 * seI[length(parhat1)]
     
     EC4 = cbind(matrix(c(parhat1[1:totparl]-1.96*(seI[1:totparl]),s1_lI,s2_lI,rItheta_l),ncol=1),
                 matrix(c(parhat1[1:totparl]+1.96*(seI[1:totparl]),s1_uI,s2_uI,rItheta_u), ncol=1))
@@ -1269,23 +1214,8 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     # Confidence interval for theta
     
-    use.fisher.z <- TRUE
-    
-    if (use.fisher.z) {
-      z1theta <- 0.5*log((1+parhatE[length(parhatE)])/(1-parhatE[length(parhatE)]))
-      se1theta_z <- (1/(1-parhatE[length(parhatE)]^2))*se1[length(parhatE)]
-      z1theta_l <- z1theta-1.96*(se1theta_z)
-      z1theta_u <- z1theta+1.96*(se1theta_z)
-      
-      # Back transform
-      
-      r1theta_l <- (exp(2*z1theta_l)-1)/(exp(2*z1theta_l)+1)      
-      r1theta_u <- (exp(2*z1theta_u)-1)/(exp(2*z1theta_u)+1)
-      
-    } else {
-      r1theta_l <- parhatE[length(parhatE)] - 1.96 * se1[length(parhatE)]
-      r1theta_u <- parhatE[length(parhatE)] + 1.96 * se1[length(parhatE)]
-    }
+    r1theta_l <- parhatE[length(parhatE)] - 1.96 * se1[length(parhatE)]
+    r1theta_u <- parhatE[length(parhatE)] + 1.96 * se1[length(parhatE)]
     
     # Matrix of all the confidence intervals
     EC2 = cbind(matrix(c(parhatE[1:(totparl-2)]-1.96*(se1)[1:(totparl-2)],S1_l,S2_l,r1_l, r1theta_l),ncol=1),
@@ -1414,21 +1344,8 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     # Confidence interval for theta
     
-    if (use.fisher.z) {
-      ztheta <- 0.5*log((1+parhat[length(parhat)])/(1-parhat[length(parhat)]))
-      setheta_z <- (1/(1-parhat[length(parhat)]^2))*se[length(parhat)]
-      ztheta_l <- ztheta-1.96*(setheta_z)
-      ztheta_u <- ztheta+1.96*(setheta_z)
-      
-      # Back transform
-      
-      rtheta_l <- (exp(2*ztheta_l)-1)/(exp(2*ztheta_l)+1)      
-      rtheta_u <- (exp(2*ztheta_u)-1)/(exp(2*ztheta_u)+1)
-      
-    } else {
-      rtheta_l <- parhat[length(parhat)] - 1.96 * se[length(parhat)]
-      rtheta_u <- parhat[length(parhat)] + 1.96 * se[length(parhat)]
-    }
+    rtheta_l <- parhat[length(parhat)] - 1.96 * se[length(parhat)]
+    rtheta_u <- parhat[length(parhat)] + 1.96 * se[length(parhat)]
     
     # Matrix with all confidence intervals
     EC1 = cbind(matrix(c(parhat[1:totparl]-1.96*(se[1:totparl]),s1_l,s2_l,r_l,rtheta_l),ncol=1),
@@ -1485,21 +1402,8 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     # Confidence interval for theta
     
-    if (use.fisher.z) {
-      zretheta <- 0.5*log((1+parhatre[length(parhatre)])/(1-parhatre[length(parhatre)]))
-      seretheta_z <- (1/(1-parhatre[length(parhatre)]^2))*sere[length(parhatre)]
-      zretheta_l <- zretheta-1.96*(seretheta_z)
-      zretheta_u <- zretheta+1.96*(seretheta_z)
-      
-      # Back transform
-      
-      rretheta_l <- (exp(2*zretheta_l)-1)/(exp(2*zretheta_l)+1)      
-      rretheta_u <- (exp(2*zretheta_u)-1)/(exp(2*zretheta_u)+1)
-      
-    } else {
-      rretheta_l <- parhatre[length(parhatre)] - 1.96 * sere[length(parhatre)]
-      rretheta_u <- parhatre[length(parhatre)] + 1.96 * sere[length(parhatre)]
-    }
+    rretheta_l <- parhatre[length(parhatre)] - 1.96 * sere[length(parhatre)]
+    rretheta_u <- parhatre[length(parhatre)] + 1.96 * sere[length(parhatre)]
     
     EC3 = cbind(matrix(c(parhatre[1:totparl]-1.96*(sere[1:totparl]),s1re_l,s2re_l,rre_l,rretheta_l),ncol=1),
                 matrix(c(parhatre[1:totparl]+1.96*(sere[1:totparl]),s1re_u,s2re_u,rre_u,rretheta_u), ncol=1))
@@ -1556,21 +1460,8 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     
     # Confidence interval for theta
     
-    if (use.fisher.z) {
-      zItheta <- 0.5*log((1+parhat1[length(parhat1)])/(1-parhat1[length(parhat1)]))
-      seItheta_z <- (1/(1-parhat1[length(parhat1)]^2))*seI[length(parhat1)]
-      zItheta_l <- zItheta-1.96*(seItheta_z)
-      zItheta_u <- zItheta+1.96*(seItheta_z)
-      
-      # Back transform
-      
-      rItheta_l <- (exp(2*zItheta_l)-1)/(exp(2*zItheta_l)+1)      
-      rItheta_u <- (exp(2*zItheta_u)-1)/(exp(2*zItheta_u)+1)
-      
-    } else {
-      rItheta_l <- parhat1[length(parhat1)] - 1.96 * seI[length(parhat1)]
-      rItheta_u <- parhat1[length(parhat1)] + 1.96 * seI[length(parhat1)]
-    }
+    rItheta_l <- parhat1[length(parhat1)] - 1.96 * seI[length(parhat1)]
+    rItheta_u <- parhat1[length(parhat1)] + 1.96 * seI[length(parhat1)]
     
     EC4 = cbind(matrix(c(parhat1[1:totparl]-1.96*(seI[1:totparl]),s1_lI,s2_lI,rItheta_l),ncol=1),
                 matrix(c(parhat1[1:totparl]+1.96*(seI[1:totparl]),s1_uI,s2_uI,rItheta_u), ncol=1))
