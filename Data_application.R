@@ -1,6 +1,3 @@
-# DataApplicationJTPA zou ik nog eens moeten nalezen want ik was al best moe
-# toen ik het aan het maken was.
-
 
 # Clear workspace
 rm(list = ls())
@@ -30,8 +27,8 @@ totparl=2*parl
 parlgamma=parl-1
 
 # Create data matrix of confounded variable. Z is the indicator whether the
-# participant actually participated in the study. (0 for no participation, 1 
-# otherwise). 
+# participant actually participated the training program (0 for no participation,
+# 1 otherwise).
 Z = as.matrix(dataset$jtpa)
 
 # Create data matrix of instrumental variable. W is the indicator whether the 
@@ -63,4 +60,18 @@ namescoef =  c("beta_{T,0}","beta_{T,1}","beta_{T,2}","beta_{T,3}","beta_{T,5}",
 
 init.value.theta <- 1
 DataApplicationJPTA(data, init.value.theta) # Takes about 1 minute to run
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

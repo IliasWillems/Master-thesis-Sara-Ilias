@@ -2906,7 +2906,7 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   # Create matrix of X, Z and V.
   M <- cbind(data[,3:(1+parl)],V)
   
-  # Create matrix of X, Z and W.
+  # Create matrix of X, Z and w.
   MnoV = data[,3:(2+parl)]
   
   init = c(rep(0,totparl), 1, 1, init.value.theta)
@@ -2916,9 +2916,10 @@ DataApplicationJPTA <- function(data, init.value.theta) {
                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
   #
-  # Our model: Taking into account Z is likely a confounded variable and that T 
-  #            and C are dependent
+  # 2-step: Taking into account Z is likely a confounded variable and that T 
+  #         and C are dependent
   #
+  print("Fitting 2-step estimator model...")
   
   # Create vector of initial values for the estimation of the parameters using the
   # parhat1. The final vector will be of the following form. 
@@ -3045,6 +3046,7 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   # Naive model: assuming Z is an unconfounded variable, but including dependence
   #              between T and C.
   #
+  print("Fitting naive model...")
   
   # remove data for v from data matrix
   ME = M[,-ncol(M)]
@@ -3113,6 +3115,7 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   # Independence model: Model taking into account that Z is likely a confounded
   #                     variable but assuming independence between T and C.
   #
+  print("Fitting independence model...")
   
   # We construct the vector with
   # [1:7]   : beta
@@ -3259,10 +3262,13 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   # c(intercept, age, has_highschool_degree(1=yes), white(yes=1), married(yes=1),
   #   participated_in_study(no=0, otherwise=1),
   #   assigned_group(control=0, treatment = 1))
-  dd <- c(1, 22, 1, 1, 0, 1, 1)
+  dd <- c(1, 40, 1, 1, 0, 1, 1)
   
+  # Note that Y is equal to log(time). We recreate the original vector of event/
+  # censoring times and sort the values.
   Time <- sort(exp(Y))
   
+  # For each time, compute the value of the survival curve.
   for (i in 1:length(Time)) {
     sd = (YJtrans(log(Time[i]), theta) - t(parhat[1:7]) %*% dd)/s1
     S[i] = 1 - pnorm(sd)
@@ -3332,12 +3338,53 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   }
   
   
-  plot(Time, S, type = 's', col = 1)
+  plot(Time, S, type = 's', col = 1, ylab = "S(t)", xlab = "t")
   lines(Time, S_noTransform, type = 's', col = 2)
   
   # Add legend
-  legend(x = 1000, y = 0.95, c("Transformation model", "No transformation"),
+  legend(x = 1000, y = 0.95,
+         c("Transformation model", "No transformation"),
          col = c(1, 2), lty = 1)
+  
+  # Create cdf
+  CDF <- 1-S
+  CDF_noTr <- 1 - S_noTransform
+  
+  # Find median of T using S.
+  median.CDF <- CDF[CDF > 0.5]
+  median.CDF <- median.CDF[1]
+  median.CDF <- min(which(CDF == median.CDF))
+  print(paste("Median survival time of transformation model is", median.CDF))
+  
+  # Find the median of T using S_noTransform
+  median.CDF_noTr <- CDF_noTr[CDF_noTr > 0.5]
+  median.CDF_noTr <- median.CDF_noTr[1]
+  median.CDF_noTr <- min(which(CDF_noTr == median.CDF_noTr))
+  print(paste("Median survival time model without transformation is", median.S_noTr))
+  
+  # Find 0.1 quantile of T using S.
+  q.CDF <- CDF[CDF > 0.1]
+  q.CDF <- q.CDF[1]
+  q.CDF <- min(which(CDF == q.CDF))
+  print(paste("0.1 quantile survival time of transformation model is", q.CDF))
+  
+  # Find 0.1 quantile of T using S_noTransform
+  q.CDF_noTr <- CDF_noTr[CDF_noTr > 0.1]
+  q.CDF_noTr <- q.CDF_noTr[1]
+  q.CDF_noTr <- min(which(CDF_noTr == q.CDF_noTr))
+  print(paste("0.1 quantile survival time model without transformation is", q.CDF_noTr))
+  
+  # Find 0.9 quantile of T using S.
+  q.CDF <- CDF[CDF > 0.9]
+  q.CDF <- q.CDF[1]
+  q.CDF <- min(which(CDF == q.CDF))
+  print(paste("0.1 quantile survival time of transformation model is", q.CDF))
+  
+  # Find 0.9 quantile of T using S_noTransform
+  q.CDF_noTr <- CDF_noTr[CDF_noTr > 0.9]
+  q.CDF_noTr <- q.CDF_noTr[1]
+  q.CDF_noTr <- min(which(CDF_noTr == q.CDF_noTr))
+  print(paste("0.1 quantile survival time model without transformation is", q.CDF_noTr))
 }
 
 
