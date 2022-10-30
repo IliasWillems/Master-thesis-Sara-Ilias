@@ -2,7 +2,7 @@ library(MASS)
 library(nloptr)
 library(numDeriv)
 library(xtable)
-source("Functions.R")
+source("Functions_2trans.R")
 
 init.value.theta_1=1
 init.value.theta_2=1
