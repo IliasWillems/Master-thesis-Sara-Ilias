@@ -11,7 +11,7 @@ library(MASS)
 library(nloptr)
 library(numDeriv)
 library(xtable)
-source("Functions.r")
+source("Functions_2trans.r")
 
 # Select all males that have children (fathers)
 dataset = fulldata[(fulldata$children == 1 & fulldata$male == 1), -c(1,5,8)]
