@@ -1129,7 +1129,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
 #     storing the results is also different.)
 ################################################################################
 
-SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta) {
+SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.value.theta_2) {
   sum = c()
   sum1 = c()
   sum2 = c()
@@ -1757,7 +1757,7 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta) {
 ################################################################################
 
 
-SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta) {
+SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.value.theta_2) {
   sum = c()
   sum1 = c()
   sum2 = c()
@@ -2371,7 +2371,7 @@ SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta) {
 ################################################################################
 
 
-SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta) {
+SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.value.theta_2) {
   sum = c()
   sum1 = c()
   sum2 = c()
