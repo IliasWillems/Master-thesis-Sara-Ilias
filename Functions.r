@@ -819,7 +819,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
     
-    VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
     
     giI = c()
     
@@ -1421,7 +1421,7 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
     
-    VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
     
     giI = c()
     
@@ -2025,7 +2025,7 @@ SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
     
-    VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
     
     giI = c()
     
@@ -2620,7 +2620,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta) {
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
     
-    VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
     
     giI = c()
     
@@ -3132,7 +3132,7 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
   HIInd = ginv(HInd)
   
-  VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+  VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
   
   giI = c()
   
