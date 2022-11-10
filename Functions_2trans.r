@@ -591,7 +591,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,1,2,2),
+    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,0.99,2,2),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -653,7 +653,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,totparl),Inf,Inf,1,2,2),
+    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     parhatG = c(parhat,as.vector(gammaest))
@@ -787,7 +787,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,totparl),Inf,Inf,1,2,2),
+    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                       eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     Hre = hessian(LikF,parhatre,Y=Y,Delta=Delta,M=MrealV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -848,7 +848,7 @@ SimulationCI11_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
     
-    VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
     
     giI = c()
     
@@ -1211,7 +1211,7 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,1,2,2),
+    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,0.99,2,2),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -1273,7 +1273,7 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,totparl),Inf,Inf,1,2,2),
+    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     parhatG = c(parhat,as.vector(gammaest))
@@ -1407,7 +1407,7 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,totparl),Inf,Inf,1,2,2),
+    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                       eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
    
     Hre = hessian(LikF,parhatre,Y=Y,Delta=Delta,M=MrealV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -1467,7 +1467,7 @@ SimulationCI12_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
     
-    VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
     
     giI = c()
     
@@ -1842,7 +1842,7 @@ SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,1,2,2),
+    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,0.99,2,2),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -1904,7 +1904,7 @@ SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,totparl),Inf,Inf,1,2,2),
+    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     parhatG = c(parhat,as.vector(gammaest))
@@ -2028,7 +2028,7 @@ SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,totparl),Inf,Inf,1,2,2),
+    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                       eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     Hre = hessian(LikF,parhatre,Y=Y,Delta=Delta,M=MrealV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -2089,7 +2089,7 @@ SimulationCI21_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
     
-    VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
     
     giI = c()
     
@@ -2455,7 +2455,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,1,2,2),
+    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,0.99,2,2),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -2518,7 +2518,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,totparl),Inf,Inf,1,2,2),
+    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     parhatG = c(parhat,as.vector(gammaest))
@@ -2642,7 +2642,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-1,0,0),ub=c(rep(Inf,totparl),Inf,Inf,1,2,2),
+    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                       eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     Hre = hessian(LikF,parhatre,Y=Y,Delta=Delta,M=MrealV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -2702,7 +2702,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
     
-    VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
     
     giI = c()
     
@@ -3224,7 +3224,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
   HIInd = ginv(HInd)
   
-  VargammaI = Hgamma[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
+  VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+parlgamma-1)]
   
   giI = c()
   
