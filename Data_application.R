@@ -1,4 +1,3 @@
-
 # Clear workspace
 rm(list = ls())
 
@@ -39,11 +38,17 @@ W = as.matrix(dataset$treatment)
 XandW = as.matrix(cbind(X,W))
 n=nrow(dataset)
 data=as.matrix(cbind(Y,Delta,X,Z,W))
+
 namescoef =  c("beta_{T,0}","beta_{T,1}","beta_{T,2}","beta_{T,3}","beta_{T,5}",
                "alpha_T","lambda_T","beta_{C,0}","beta_{C,1}","beta_{C,2}",
                "beta_{C,3}","beta_{C,5}","alpha_C","lambda_C","sigma_T",
                "sigma_C","rho","theta")
 
+namescoef =  c("$\\beta_{T,0}$","$\\beta_{T,1}$","$\\beta_{T,2}$",
+               "$\\beta_{T,3}$","$\\beta_{T,5}$","$\\alpha_T$","$\\lambda_T$",
+               "$\\beta_{C,0}$","$\\beta_{C,1}$","$\\beta_{C,2}$",
+               "$\\beta_{C,3}$","$\\beta_{C,5}$","$\\alpha_C$","$\\lambda_C$",
+               "$\\sigma_T$","$\\sigma_C$","$\\rho$","$\\theta$")
 
 # We follow the approach as in Chapter 5 of Crommen, Van Keilegom (2022). Hence,
 # we will be comparing the models (1) assuming independence (2) assuming
@@ -52,14 +57,8 @@ namescoef =  c("beta_{T,0}","beta_{T,1}","beta_{T,2}","beta_{T,3}","beta_{T,5}",
 # However, we will compare the estimated survival curves.
 
 
-############################### IMPOARTANT NOTE: ###############################
-# If in the estimation of the independence model, it should be                 #
-# VargammaI = HgammaI[...] instead of VargammaI = Hgamma[...], this still needs#
-# to be changed! Here we use VargammaI = Hgamma[...].                          #
-################################################################################
-
 init.value.theta <- 1
-DataApplicationJPTA(data, init.value.theta) # Takes about 1 minute to run
+DataApplicationJPTA(data, init.value.theta) # Takes about 1-2 minute to run
 
 
 

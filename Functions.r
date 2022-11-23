@@ -3207,7 +3207,7 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   pvalue.indep <- 2*pmin((1-pnorm(parhat1/seI)),pnorm(parhat1/seI))
   significant.indep <- ifelse(pvalue.indep < 0.10,
                               ifelse(pvalue.indep < 0.05,
-                                     ifelse(pvalue.indeo < 0.01, "**", "*"),"."), "")
+                                     ifelse(pvalue.indep < 0.01, "**", "*"),"."), "")
   results.indep <- cbind(parhat1, seI, pvalue.indep, EC4)
   colnames(results.indep) <- c("Estimate", "St.Dev.", "pvalue", "CI.lb", "CI.ub")
   rownames(results.indep) <- namescoef[-(length(namescoef) - 1)]
@@ -3223,7 +3223,8 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   addtorow = list()
   addtorow$pos = list(-1)
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  print(xtab, add.to.row=addtorow, include.colnames=TRUE)
+  print.xtable(xtab, add.to.row=addtorow, include.colnames=TRUE,
+               sanitize.text.function = function(x){x})
   
   # print.xtable(xtab,file=paste0("Results_2-step_Estimation_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
@@ -3233,7 +3234,8 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   addtorow = list()
   addtorow$pos = list(-1)
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  print(xtab, add.to.row=addtorow, include.colnames=TRUE)
+  print.xtable(xtab, add.to.row=addtorow, include.colnames=TRUE, 
+               sanitize.text.function = function(x){x})
   
   # print.xtable(xtab,file=paste0("Results_naive_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
@@ -3243,7 +3245,8 @@ DataApplicationJPTA <- function(data, init.value.theta) {
   addtorow = list()
   addtorow$pos = list(-1)
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  print(xtab, add.to.row=addtorow, include.colnames=TRUE)
+  print.xtable(xtab, add.to.row=addtorow, include.colnames=TRUE,
+               sanitize.text.function = function(x){x})
   
   # print.xtable(xtab,file=paste0("Results_independence_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
