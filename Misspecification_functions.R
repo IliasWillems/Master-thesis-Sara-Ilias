@@ -94,13 +94,13 @@ data.misspecified.cloglog = function(n, par, iseed, Wbin){
   v <- -log(-log(runif(n)))
   Z <- as.matrix(as.numeric(XandW %*% gamma - v > 0))
   
-  gamma.EM <- 0.5772156649 # Euler-Mascheroni constant
+  gamma.EM <- -digamma(1) # Euler-Mascheroni constant
   
   # Compute E[v|v < W^T \gamma]
-  E.v_lt_Wg <- (XandW %*% gamma) + exp(exp(-XandW %*% gamma))*expint_Ei(x = (-exp(- XandW %*% gamma)))
+  E.v_lt_Wg <- (XandW %*% gamma) - exp(exp(-XandW %*% gamma))*expint_E1(x = (exp(- XandW %*% gamma)))
   
   # Compute E[v|v > W^T \gamma]
-  E.v_gt_Wg <- (gamma.EM - (XandW %*% gamma)*exp(-exp(-XandW %*% gamma)) - expint_Ei(x = (-exp(-XandW %*% gamma)))) / (1-exp(-exp(-XandW %*% gamma)))
+  E.v_gt_Wg <- (gamma.EM - (XandW %*% gamma)*exp(-exp(-XandW %*% gamma)) + expint_E1(x = (exp(-XandW %*% gamma)))) / (1-exp(-exp(-XandW %*% gamma)))
   
   # Compute real V
   realV <- (1-Z)*(E.v_gt_Wg) - Z*(E.v_lt_Wg)
