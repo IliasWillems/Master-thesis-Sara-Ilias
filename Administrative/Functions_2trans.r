@@ -2405,7 +2405,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     Y = data[,1]
     Delta = data[,2]
-    Xi = dat[,3]
+    Xi = data[,3]
     X = data[,(5:(parl+1))]
     Z = data[,parl+2]
     W = data[,parl+3]
