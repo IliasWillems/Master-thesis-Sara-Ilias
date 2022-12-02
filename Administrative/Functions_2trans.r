@@ -1567,7 +1567,7 @@ Summarize_results = function() {
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
   # Save table code in .txt-file. Also add header row.
-  print.xtable(xtab,file=paste0("YJ_estV11_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+  print.xtable(xtab,file=paste0("YJ_estV11_admin_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   print(xtab, add.to.row=addtorow, include.colnames=TRUE)
   
   ## Results of model with real V
@@ -1581,7 +1581,7 @@ Summarize_results = function() {
   addtorow$pos = list(-1)
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
-  print.xtable(xtab2,file=paste0("YJ_realV11_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+  print.xtable(xtab2,file=paste0("YJ_realV11_admin_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   print(xtab2, add.to.row=addtorow, include.colnames=TRUE)
 }
 
