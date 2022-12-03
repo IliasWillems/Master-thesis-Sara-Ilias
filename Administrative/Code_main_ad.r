@@ -38,7 +38,7 @@ iseed <- 747852
 # To split up simulation in different parts
 number.of.parts <- 30
 #16-30
-parts.to.evaluate <- 16:30
+parts.to.evaluate <- 1:15
 
 for (part.to.evaluate in parts.to.evaluate) {
   message("Evaluating part ", which(part.to.evaluate == parts.to.evaluate),
@@ -49,8 +49,9 @@ for (part.to.evaluate in parts.to.evaluate) {
                                       init.value.theta_2, part.to.evaluate,
                                       number.of.parts)
   
-  diff <- start.time - Sys.time()
-  message("This iteration ran for approximately ", round(diff/60), " minutes")
+  diff <- Sys.time() - start.time
+  message("This iteration ran for approximately ")
+  message(round(diff))
   message("")
 }
 
