@@ -355,7 +355,7 @@ LikIGamma2 = function(par,Y,Delta,Xi,M){
   sigma2 = par[l+4]
   theta_1 = par[l+5]
   theta_2 = par[l+6]
-  gamma = as.matrix(par[(l+6):(l+5+parlgamma)])
+  gamma = as.matrix(par[(l+7):(l+6+parlgamma)])
   
   X=as.matrix(M[,1:k])
   Z=as.matrix(M[,k+1])

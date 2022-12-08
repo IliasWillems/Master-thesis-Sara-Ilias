@@ -24,33 +24,9 @@ for(l in samsize)
   nsim = 100
   myseed = 876661
   message("sample size = ",l)
-  SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta_1, init.value.theta_2) # Design 1
-  SimulationCI12_SaraIlias(l,nsim,myseed, init.value.theta_1, init.value.theta_2) # Design 2
+  #SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta_1, init.value.theta_2) # Design 1
+  #SimulationCI12_SaraIlias(l,nsim,myseed, init.value.theta_1, init.value.theta_2) # Design 2
   SimulationCI21_SaraIlias(l,nsim,myseed, init.value.theta_1, init.value.theta_2) # Design 3
   SimulationCI22_SaraIlias(l,nsim,myseed,init.value.theta_1, init.value.theta_2) # Design 4
-}
-
-
-n <- 10000
-nsim <- 300
-iseed <- 747852
-
-# To split up simulation in different parts
-number.of.parts <- 30
-#16-30
-parts.to.evaluate <- 16:30
-
-for (part.to.evaluate in parts.to.evaluate) {
-  message("Evaluating part ", which(part.to.evaluate == parts.to.evaluate),
-          " out of ", length(parts.to.evaluate))
-  
-  start.time <- Sys.time()
-  SimulationCI11_SaraIlias_Simplified(n, nsim, iseed, init.value.theta_1,
-                                      init.value.theta_2, part.to.evaluate,
-                                      number.of.parts)
-  
-  diff <- start.time - Sys.time()
-  message("This iteration ran for approximately ", round(diff/60), " minutes")
-  message("")
 }
 
