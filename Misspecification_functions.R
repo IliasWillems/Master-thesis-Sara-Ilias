@@ -388,13 +388,13 @@ data.misspecified.heteroscedastic = function(n,par,iseed,Zbin,Wbin){
   err=matrix(rep(1,2*n), nrow=n)
   for (A in 1:n){
     # We add a constant such that product terms are always positive
-    # divide by 100 to fade out the differences in variance
-    prod_t <- ((Mgen%*%beta)[A]+abs(min(min(Mgen%*%beta),0))+1)/100
-    prod_c <- ((Mgen%*%eta)[A]+abs(min(min(Mgen%*%eta),0))+1)/100
+    # divide by 10 to fade out the differences in variance
+    prod_t <- max((Mgen%*%beta)[A]/10+5,1)
+    prod_c <- max((Mgen%*%eta)[A]/10+5,1)
     err[A,] <- mvrnorm(1, mu=mu, Sigma=matrix(c(sd[1]^2*prod_t,sd[1]*sd[2]*sd[3]*sqrt(prod_t*prod_c),sd[1]*sd[2]*sd[3]*sqrt(prod_t*prod_c),sd[2]^2*prod_c),nrow=2,byrow=TRUE))
   }
   
-
+  plot(Mgen%*%eta,err[,2])
   # error T and error C
   err1 = err[,1]
   err2 = err[,2]
