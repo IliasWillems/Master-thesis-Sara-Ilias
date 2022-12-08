@@ -1,1 +1,0 @@
-Whenever a problem occurs somewhere in the simulation, we write it to this error log
