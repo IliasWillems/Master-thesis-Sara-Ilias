@@ -1265,7 +1265,7 @@ SimulationCI12_splitup = function(n, nsim, iseed, init.value.theta_1,
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.realV, file = paste0("Data 2500 simulations C12/df_realV_",
+  write.csv(df.realV, file = paste0("Data 2500 simulations CI12/df_realV_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
@@ -1710,7 +1710,7 @@ SimulationCI21_splitup = function(n, nsim, iseed, init.value.theta_1,
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.realV, file = paste0("Data 2500 simulations C21/df_realV_",
+  write.csv(df.realV, file = paste0("Data 2500 simulations CI21/df_realV_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
@@ -2160,7 +2160,7 @@ SimulationCI22_splitup = function(n, nsim, iseed, init.value.theta_1,
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.realV, file = paste0("Data 2500 simulations C22/df_realV_",
+  write.csv(df.realV, file = paste0("Data 2500 simulations CI22/df_realV_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)

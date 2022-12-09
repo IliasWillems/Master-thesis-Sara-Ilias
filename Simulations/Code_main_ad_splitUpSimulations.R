@@ -23,11 +23,17 @@ samsize = c(250, 500, 1000)
 # 1 = continuous and 2 = binary, the first number indicates Z and the second number indicates W
 # the order below also matches the design order in section 4 (simulation study) of the paper
 
-n <- 150
-myseed <- 750751
-nsim = 2500
-number.of.parts <- 500
-parts.to.evaluate <- 1:2
+# n <- 1000
+# nsim <- 2500
+# myseed <- 750751
+# number.of.parts <- 250
+# parts.to.evaluate <- 1:125
+
+n <- 1000
+nsim <- 100
+myseed <- 876661
+number.of.parts <- 10
+parts.to.evaluate <- 1:10
 
 for (part.to.evaluate in parts.to.evaluate) {
   # Start message
@@ -35,6 +41,10 @@ for (part.to.evaluate in parts.to.evaluate) {
           " out of ", length(parts.to.evaluate))
   
   start.time <- Sys.time()
+  
+  #
+  # Make sure to select the correct simulation function
+  #
   
   SimulationCI11_splitup(n, nsim, myseed, init.value.theta_1, init.value.theta_2,
                          part.to.evaluate, number.of.parts)
