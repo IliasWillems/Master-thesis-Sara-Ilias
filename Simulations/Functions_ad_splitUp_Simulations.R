@@ -2445,9 +2445,13 @@ summarize_results = function(CI) {
   addtorow$pos = list(-1)
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
+  # For correct naming of the file
+  numbers <- substr(CI, 3, 4)
+  
   # Save table code in .txt-file. Also add header row.
   message("Results for model with estimated V")
-  print.xtable(xtab, file=paste0("Simulation results/YJ_ad_estV11_", n, ".txt"),
+  print.xtable(xtab, file=paste0("Simulation results/YJ_ad_estV", numbers, "_",
+                                 n, ".txt"),
                add.to.row = addtorow, append=TRUE, table.placement = "!",
                sanitize.text.function = function(x){x})
   print(xtab, add.to.row = addtorow, include.colnames=TRUE,
@@ -2467,7 +2471,8 @@ summarize_results = function(CI) {
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
   message("Results for naive model")
-  print.xtable(xtab1, file = paste0("Simulation results/YJ_ad_noV11_", n, ".txt"),
+  print.xtable(xtab1, file = paste0("Simulation results/YJ_ad_noV", numbers, "_",
+                                    n, ".txt"),
                add.to.row = addtorow, append = TRUE, table.placement = "!",
                sanitize.text.function = function(x){x})
   print(xtab1, add.to.row = addtorow, include.colnames = TRUE,
@@ -2485,7 +2490,8 @@ summarize_results = function(CI) {
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
   message("Results for model with real V")
-  print.xtable(xtab2, file = paste0("Simulation results/YJ_ad_realV11_", n, ".txt"),
+  print.xtable(xtab2, file = paste0("Simulation results/YJ_ad_realV", numbers, "_",
+                                    n, ".txt"),
                add.to.row = addtorow, append = TRUE, table.placement = "!", 
                sanitize.text.function = function(x){x})
   print(xtab2, add.to.row = addtorow, include.colnames=TRUE,
@@ -2503,7 +2509,8 @@ summarize_results = function(CI) {
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
   message("Results for independence model")
-  print.xtable(xtab3, file = paste0("Simulation results/YJ_ad_IndEstV11_", n, ".txt"),
+  print.xtable(xtab3, file = paste0("Simulation results/YJ_ad_IndEstV", numbers, "_",
+                                    n, ".txt"),
                add.to.row = addtorow, append = TRUE, table.placement = "!",
                sanitize.text.function = function(x){x})
   print(xtab3, add.to.row = addtorow, include.colnames=TRUE,

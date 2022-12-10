@@ -46,7 +46,7 @@ for (part.to.evaluate in parts.to.evaluate) {
   # Make sure to select the correct simulation function
   #
   
-  SimulationCI11_splitup(n, nsim, myseed, init.value.theta_1, init.value.theta_2,
+  SimulationCI12_splitup(n, nsim, myseed, init.value.theta_1, init.value.theta_2,
                          part.to.evaluate, number.of.parts)
   
   # Tell the time this iteration ran
@@ -60,7 +60,7 @@ for (part.to.evaluate in parts.to.evaluate) {
   message("")
 }
 
-summarize_results("CI11")
+summarize_results("CI12")
 
 
 
