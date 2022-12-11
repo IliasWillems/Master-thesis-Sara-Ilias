@@ -394,7 +394,6 @@ data.misspecified.heteroscedastic = function(n,par,iseed,Zbin,Wbin){
     err[A,] <- mvrnorm(1, mu=mu, Sigma=matrix(c(sd[1]^2*(1+prod_t),sd[1]*sd[2]*sd[3]*sqrt((1+prod_t)*(1+prod_c)),sd[1]*sd[2]*sd[3]*sqrt((1+prod_t)*(1+prod_c)),sd[2]^2*(1+prod_c)),nrow=2,byrow=TRUE))
   }
   
-  plot(Mgen%*%eta,err[,2])
   # error T and error C
   err1 = err[,1]
   err2 = err[,2]
@@ -1455,7 +1454,7 @@ Misspecification.t.sim = function(n, nsim, iseed, par, Zbin, Wbin) {
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
   # Save table code in .txt-file. Also add header row.
-  print.xtable(xtab, file = paste0("YJ_misspec_skew",n,".txt"),
+  print.xtable(xtab, file = paste0("YJ_misspec_t",n,".txt"),
                add.to.row = addtorow, append = FALSE, table.placement="!",
                sanitize.text.function = function(x){x})
   print(xtab, include.colnames = TRUE, add.to.row = addtorow, 
@@ -1721,7 +1720,7 @@ Misspecification.bimodal.sim = function(n, nsim, iseed, par, Zbin, Wbin) {
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
   # Save table code in .txt-file. Also add header row.
-  print.xtable(xtab, file = paste0("YJ_misspec_skew",n,".txt"),
+  print.xtable(xtab, file = paste0("YJ_misspec_bimodal",n,".txt"),
                add.to.row = addtorow, append = FALSE, table.placement="!",
                sanitize.text.function = function(x){x})
   print(xtab, include.colnames = TRUE, add.to.row = addtorow, 
@@ -1987,7 +1986,7 @@ Misspecification.heteroscedastic.sim = function(n, nsim, iseed, par, Zbin, Wbin)
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   
   # Save table code in .txt-file. Also add header row.
-  print.xtable(xtab, file = paste0("YJ_misspec_skew",n,".txt"),
+  print.xtable(xtab, file = paste0("YJ_misspec_heteroscedastic",n,".txt"),
                add.to.row = addtorow, append = FALSE, table.placement="!",
                sanitize.text.function = function(x){x})
   print(xtab, include.colnames = TRUE, add.to.row = addtorow, 
