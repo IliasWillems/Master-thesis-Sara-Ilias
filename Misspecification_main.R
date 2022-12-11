@@ -83,7 +83,7 @@ lambda <- output[[5]]
 hist2(errors[,1], errors[,2], main = bquote(omega == .(omega)))
 
 mean <- (2/pi)^(1/2)*psi.delta.theta[2]
-curve(2*dnorm(x+mean,mean=0,sd=1)*pnorm(lambda[1]*(x+mean),mean=0,sd=1), xlim=c(-2,2),ylab="density", main="Skewed normal")
+curve(2*dnorm(x+mean,mean=0,sd=1)*pnorm(lambda[1]*(x+mean),mean=0,sd=1), xlim=c(-2,2),ylab="density", main="Skew normal")
 
 
 
