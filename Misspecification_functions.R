@@ -225,7 +225,7 @@ data.misspecified.skew <- function(n, par, iseed, Zbin, Wbin) {
   
   errors <- cbind(Z_1, Z_2)
   
-  return(list(data, errors, offdiag.Omega, theoretical.correlation))
+  return(list(data, errors, offdiag.Omega, theoretical.correlation, lambda))
 }
 
 

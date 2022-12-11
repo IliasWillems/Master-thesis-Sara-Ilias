@@ -77,9 +77,14 @@ output <- data.misspecified.skew(n, par.skew_normal, iseed, 1, 1)
 data <- output[[1]]
 errors <- output[[2]]
 omega <- output[[3]]
+lambda <- output[[5]]
 
 # Make a plot of the errors
 hist2(errors[,1], errors[,2], main = bquote(omega == .(omega)))
+
+mean <- (2/pi)^(1/2)*psi.delta.theta[2]
+curve(2*dnorm(x+mean,mean=0,sd=1)*pnorm(lambda[1]*(x+mean),mean=0,sd=1), xlim=c(-2,2),ylab="density", main="Skewed normal")
+
 
 
 # Simulation
