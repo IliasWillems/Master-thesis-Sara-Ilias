@@ -25,8 +25,8 @@ source("Functions_ad.R")
 #                              Set some parameters                             # 
 ################################################################################
 
-n <- 500
-nsim <- 200
+n <- 1000
+nsim <- 100
 beta <- c(2.5, 2.6, 1.8, 2)
 eta <- c(1.8,0.9,0.5,-2.2)
 gamma <- c(-1, 0.6, 2.3)
@@ -69,7 +69,7 @@ Misspecificaion.cloglog.sim(n = n, nsim = nsim, iseed = iseed, par = par.cloglog
 #
 
 # Set some more variables
-psi.delta.theta <- c(-0.9, 0.8, 0.8, 1, 0.5)
+psi.delta.theta <- c(-0.9, 0.97, 0.97, 1, 0.5)
 par.skew_normal <- list(beta, eta, psi.delta.theta, gamma)
 
 # Generate data with skew-normal errors to see what it looks like
@@ -80,6 +80,7 @@ omega <- output[[3]]
 
 # Make a plot of the errors
 hist2(errors[,1], errors[,2], main = bquote(omega == .(omega)))
+
 
 # Simulation
 output <- Misspecification.skew.sim(n, nsim = nsim, iseed = iseed, 

@@ -174,8 +174,8 @@ data.misspecified.skew <- function(n, par, iseed, Zbin, Wbin) {
   
   # Create the skew-normal distributed errors (we use the variable Z for these
   # errors to be consistent with the notation used in the paper of Azzalini).
-  Z_1 <- delta_1*abs(Y[,1]) + sqrt(1 - delta_1^2)*Y[,2]
-  Z_2 <- delta_2*abs(Y[,1]) + sqrt(1 - delta_2^2)*Y[,3]
+  Z_1 <- delta_1*abs(Y[,1]) + sqrt(1 - delta_1^2)*Y[,2]-(2/pi)^(1/2)*delta_1
+  Z_2 <- delta_2*abs(Y[,1]) + sqrt(1 - delta_2^2)*Y[,3]-(2/pi)^(1/2)*delta_2
 
   # Theoretical correlation
   numerator <- offdiag.correlation*sqrt((1-delta_1^2)*(1-delta_2^2)) + delta_1*delta_2*(1-2*(1/pi))
