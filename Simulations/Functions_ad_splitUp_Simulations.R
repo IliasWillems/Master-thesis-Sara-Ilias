@@ -966,8 +966,8 @@ SimulationCI12_splitup = function(n, nsim, iseed, init.value.theta_1,
     
     # Back transform
     
-    r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
-    r1_u = (exp(2*z1t_u)-1)/(exp(2*z1t_u)+1)
+    r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1) 
+    r1_u = min((exp(2*z1t_u)-1)/(exp(2*z1t_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
@@ -1101,7 +1101,7 @@ SimulationCI12_splitup = function(n, nsim, iseed, init.value.theta_1,
     # Back transform
     
     r_l = (exp(2*zt_l)-1)/(exp(2*zt_l)+1)      
-    r_u = (exp(2*zt_u)-1)/(exp(2*zt_u)+1)
+    r_u = min((exp(2*zt_u)-1)/(exp(2*zt_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
@@ -1162,7 +1162,7 @@ SimulationCI12_splitup = function(n, nsim, iseed, init.value.theta_1,
     # Back transform
     
     rre_l = (exp(2*ztre_l)-1)/(exp(2*ztre_l)+1)      
-    rre_u = (exp(2*ztre_u)-1)/(exp(2*ztre_u)+1)
+    rre_u = min((exp(2*ztre_u)-1)/(exp(2*ztre_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
@@ -1422,7 +1422,7 @@ SimulationCI21_splitup = function(n, nsim, iseed, init.value.theta_1,
     # Back transform
     
     r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
-    r1_u = (exp(2*z1t_u)-1)/(exp(2*z1t_u)+1)
+    r1_u = min((exp(2*z1t_u)-1)/(exp(2*z1t_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
@@ -1546,7 +1546,7 @@ SimulationCI21_splitup = function(n, nsim, iseed, init.value.theta_1,
     # Back transform
     
     r_l = (exp(2*zt_l)-1)/(exp(2*zt_l)+1)      
-    r_u = (exp(2*zt_u)-1)/(exp(2*zt_u)+1)
+    r_u = min((exp(2*zt_u)-1)/(exp(2*zt_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
@@ -1607,7 +1607,7 @@ SimulationCI21_splitup = function(n, nsim, iseed, init.value.theta_1,
     # Back transform
     
     rre_l = (exp(2*ztre_l)-1)/(exp(2*ztre_l)+1)      
-    rre_u = (exp(2*ztre_u)-1)/(exp(2*ztre_u)+1)
+    rre_u = min((exp(2*ztre_u)-1)/(exp(2*ztre_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
@@ -1872,7 +1872,7 @@ SimulationCI22_splitup = function(n, nsim, iseed, init.value.theta_1,
     # Back transform
     
     r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
-    r1_u = (exp(2*z1t_u)-1)/(exp(2*z1t_u)+1)
+    r1_u = min((exp(2*z1t_u)-1)/(exp(2*z1t_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
@@ -1997,7 +1997,7 @@ SimulationCI22_splitup = function(n, nsim, iseed, init.value.theta_1,
     # Back transform
     
     r_l = (exp(2*zt_l)-1)/(exp(2*zt_l)+1)      
-    r_u = (exp(2*zt_u)-1)/(exp(2*zt_u)+1)
+    r_u = min((exp(2*zt_u)-1)/(exp(2*zt_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
@@ -2058,7 +2058,7 @@ SimulationCI22_splitup = function(n, nsim, iseed, init.value.theta_1,
     # Back transform
     
     rre_l = (exp(2*ztre_l)-1)/(exp(2*ztre_l)+1)      
-    rre_u = (exp(2*ztre_u)-1)/(exp(2*ztre_u)+1)
+    rre_u = min((exp(2*ztre_u)-1)/(exp(2*ztre_u)+1),1,na.rm=TRUE)
     
     # Confidence interval for theta
     
