@@ -803,34 +803,34 @@ SimulationCI11_splitup = function(n, nsim, iseed, init.value.theta_1,
   df.percentage <- data.frame(per1 = percentage1, per2 = percentage2,
                               row.names = part.to.evaluate)
   
-  write.csv(df.estV, file = paste0("Data 2500 simulations CI11/df_estV_",
+  write.csv(df.estV, file = paste0("Data 2500 simulations CI11/Size ",n,"/df_estV_",
                                    part.to.evaluate, "_out_of_",
                                    number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.naive, file = paste0("Data 2500 simulations CI11/df_naive_",
+  write.csv(df.naive, file = paste0("Data 2500 simulations CI11/Size ",n,"/df_naive_",
                                    part.to.evaluate, "_out_of_",
                                    number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.realV, file = paste0("Data 2500 simulations CI11/df_realV_",
+  write.csv(df.realV, file = paste0("Data 2500 simulations CI11/Size ",n,"/df_realV_",
                                    part.to.evaluate, "_out_of_",
                                    number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.indep, file = paste0("Data 2500 simulations CI11/df_indep_",
+  write.csv(df.indep, file = paste0("Data 2500 simulations CI11/Size ",n,"/df_indep_",
                                    part.to.evaluate, "_out_of_",
                                    number.of.parts, ".csv"),
             row.names = TRUE)
 
   write.csv(df.percentage,
-            file = paste0("Data 2500 simulations CI11/df_percentage_",
+            file = paste0("Data 2500 simulations CI11/Size ",n,"/df_percentage_",
                           part.to.evaluate, "_out_of_", number.of.parts, ".csv"),
             row.names = TRUE)
   
   # Write to log that simulation finished
   cat(paste0(Sys.time(), " - Finished part ", part.to.evaluate, " out of ", number.of.parts), 
-    file = "Data 2500 simulations CI11/log.txt", sep = "\n", append=TRUE)
+    file = "Data 2500 simulations CI11/Size ",n,"/log.txt", sep = "\n", append=TRUE)
 }
 
 SimulationCI12_splitup = function(n, nsim, iseed, init.value.theta_1, 
@@ -1255,34 +1255,34 @@ SimulationCI12_splitup = function(n, nsim, iseed, init.value.theta_1,
   df.percentage <- data.frame(per1 = percentage1, per2 = percentage2,
                               row.names = part.to.evaluate)
   
-  write.csv(df.estV, file = paste0("Data 2500 simulations CI12/df_estV_",
+  write.csv(df.estV, file = paste0("Data 2500 simulations CI12/Size ",n,"/df_estV_",
                                    part.to.evaluate, "_out_of_",
                                    number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.naive, file = paste0("Data 2500 simulations CI12/df_naive_",
+  write.csv(df.naive, file = paste0("Data 2500 simulations CI12/Size ",n,"/df_naive_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.realV, file = paste0("Data 2500 simulations CI12/df_realV_",
+  write.csv(df.realV, file = paste0("Data 2500 simulations CI12/Size ",n,"/df_realV_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.indep, file = paste0("Data 2500 simulations CI12/df_indep_",
+  write.csv(df.indep, file = paste0("Data 2500 simulations CI12/Size ",n,"/df_indep_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
   write.csv(df.percentage,
-            file = paste0("Data 2500 simulations CI12/df_percentage_",
+            file = paste0("Data 2500 simulations CI12/Size ",n,"/df_percentage_",
                           part.to.evaluate, "_out_of_", number.of.parts, ".csv"),
             row.names = TRUE)
   
   # Write to log that simulation finished
   cat(paste0(Sys.time(), " - Finished part ", part.to.evaluate, " out of ", number.of.parts), 
-      file = "Data 2500 simulations CI12/log.txt", sep = "\n", append=TRUE)
+      file = "Data 2500 simulations CI12/Size ",n,"/log.txt", sep = "\n", append=TRUE)
 }
 
 SimulationCI21_splitup = function(n, nsim, iseed, init.value.theta_1,
@@ -1700,34 +1700,34 @@ SimulationCI21_splitup = function(n, nsim, iseed, init.value.theta_1,
   df.percentage <- data.frame(per1 = percentage1, per2 = percentage2,
                               row.names = part.to.evaluate)
   
-  write.csv(df.estV, file = paste0("Data 2500 simulations CI21/df_estV_",
+  write.csv(df.estV, file = paste0("Data 2500 simulations CI21/Size ",n,"/df_estV_",
                                    part.to.evaluate, "_out_of_",
                                    number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.naive, file = paste0("Data 2500 simulations CI21/df_naive_",
+  write.csv(df.naive, file = paste0("Data 2500 simulations CI21/Size ",n,"/df_naive_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.realV, file = paste0("Data 2500 simulations CI21/df_realV_",
+  write.csv(df.realV, file = paste0("Data 2500 simulations CI21/Size ",n,"/df_realV_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.indep, file = paste0("Data 2500 simulations CI21/df_indep_",
+  write.csv(df.indep, file = paste0("Data 2500 simulations CI21/Size ",n,"/df_indep_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
   write.csv(df.percentage,
-            file = paste0("Data 2500 simulations CI21/df_percentage_",
+            file = paste0("Data 2500 simulations CI21/Size ",n,"/df_percentage_",
                           part.to.evaluate, "_out_of_", number.of.parts, ".csv"),
             row.names = TRUE)
   
   # Write to log that simulation finished
   cat(paste0(Sys.time(), " - Finished part ", part.to.evaluate, " out of ", number.of.parts), 
-      file = "Data 2500 simulations CI21/log.txt", sep = "\n", append=TRUE)
+      file = "Data 2500 simulations CI21/Size ",n,"/log.txt", sep = "\n", append=TRUE)
 }
 
 SimulationCI22_splitup = function(n, nsim, iseed, init.value.theta_1,
@@ -2150,37 +2150,37 @@ SimulationCI22_splitup = function(n, nsim, iseed, init.value.theta_1,
   df.percentage <- data.frame(per1 = percentage1, per2 = percentage2,
                               row.names = part.to.evaluate)
   
-  write.csv(df.estV, file = paste0("Data 2500 simulations CI22/df_estV_",
+  write.csv(df.estV, file = paste0("Data 2500 simulations CI22/Size ",n,"/df_estV_",
                                    part.to.evaluate, "_out_of_",
                                    number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.naive, file = paste0("Data 2500 simulations CI22/df_naive_",
+  write.csv(df.naive, file = paste0("Data 2500 simulations CI22/Size ",n,"/df_naive_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.realV, file = paste0("Data 2500 simulations CI22/df_realV_",
+  write.csv(df.realV, file = paste0("Data 2500 simulations CI22/Size ",n,"/df_realV_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
-  write.csv(df.indep, file = paste0("Data 2500 simulations CI22/df_indep_",
+  write.csv(df.indep, file = paste0("Data 2500 simulations CI22/Size ",n,"/df_indep_",
                                     part.to.evaluate, "_out_of_",
                                     number.of.parts, ".csv"),
             row.names = TRUE)
   
   write.csv(df.percentage,
-            file = paste0("Data 2500 simulations CI22/df_percentage_",
+            file = paste0("Data 2500 simulations CI22/Size ",n,"/df_percentage_",
                           part.to.evaluate, "_out_of_", number.of.parts, ".csv"),
             row.names = TRUE)
   
   # Write to log that simulation finished
   cat(paste0(Sys.time(), " - Finished part ", part.to.evaluate, " out of ", number.of.parts), 
-      file = "Data 2500 simulations CI22/log.txt", sep = "\n", append=TRUE)
+      file = "Data 2500 simulations CI22/Size ",n,"/log.txt", sep = "\n", append=TRUE)
 }
 
-summarize_results = function(CI) {
+summarize_results = function(CI,n) {
   
   # Some input validation
   if (!(CI %in% c("CI11", "CI12", "CI21", "CI22"))) {
@@ -2188,7 +2188,7 @@ summarize_results = function(CI) {
   }
   
   # Create correct folder name
-  folder.name <- paste0("Data 2500 simulations ", CI)
+  folder.name <- paste0("Data 2500 simulations ", CI,"/Size ",n)
   
   #
   # Create full data sets
