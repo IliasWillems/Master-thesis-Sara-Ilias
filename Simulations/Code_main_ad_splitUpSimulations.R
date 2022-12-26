@@ -23,7 +23,6 @@ samsize = c(250, 500, 1000)
 # 1 = continuous and 2 = binary, the first number indicates Z and the second number indicates W
 # the order below also matches the design order in section 4 (simulation study) of the paper
 
-n <- 1000
 nsim <- 2500
 myseed <- 750751
 number.of.parts <- 250
@@ -32,9 +31,10 @@ parts.to.evaluate <- 126:130
 
 
 for (part.to.evaluate in parts.to.evaluate) {
+  for (n in samsize){
   # Start message
   message("Starting iteration ", part.to.evaluate - parts.to.evaluate[1] + 1,
-          " out of ", length(parts.to.evaluate))
+          " out of ", length(parts.to.evaluate), " with sample size ",n)
   
   start.time <- Sys.time()
   
@@ -59,6 +59,7 @@ for (part.to.evaluate in parts.to.evaluate) {
     message("This iteration took ", diff, " minutes.")
   }
   message("")
+  }
 }
 
 summarize_results("CI12")
