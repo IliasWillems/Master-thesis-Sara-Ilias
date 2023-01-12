@@ -27,7 +27,7 @@ nsim <- 2500
 myseed <- 750751
 number.of.parts <- 250
 #126-250
-parts.to.evaluate <- 126:130
+parts.to.evaluate <- 37:75
 
 
 for (part.to.evaluate in parts.to.evaluate) {
@@ -62,7 +62,7 @@ for (part.to.evaluate in parts.to.evaluate) {
   }
 }
 
-summarize_results("CI12",1000)
+summarize_results("CI12", 1000)
 
 
 
