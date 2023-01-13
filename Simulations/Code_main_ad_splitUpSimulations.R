@@ -27,7 +27,7 @@ nsim <- 2500
 myseed <- 750751
 number.of.parts <- 250
 #126-250
-parts.to.evaluate <- 37:75
+parts.to.evaluate <- 76:86
 
 
 for (part.to.evaluate in parts.to.evaluate) {
