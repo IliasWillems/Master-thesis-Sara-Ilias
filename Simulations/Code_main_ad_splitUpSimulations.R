@@ -62,7 +62,12 @@ for (part.to.evaluate in parts.to.evaluate) {
   }
 }
 
-summarize_results("CI12", 1000)
+# summarize_results("CI22", 1000)
+
+summarize_results_full("CI11")
+summarize_results_full("CI12")
+summarize_results_full("CI21")
+summarize_results_full("CI22")
 
 
 
