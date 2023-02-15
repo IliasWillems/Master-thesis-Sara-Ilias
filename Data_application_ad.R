@@ -11,6 +11,7 @@ library(MASS)
 library(nloptr)
 library(numDeriv)
 library(xtable)
+library(VGAM)
 source("Functions_ad.r")
 
 # Select all males that have children (fathers)
