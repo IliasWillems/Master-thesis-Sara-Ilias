@@ -3267,15 +3267,15 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   s1 <- parhat[totparl + 1]
   
   # parameter vector:
-  # c(intercept, age, has_highschool_degree(1=yes), white(yes=1), married(yes=1),
+  # c(intercept, age, has_highschool_degree(1=yes),
   #   participated_in_study(no=0, otherwise=1),
   #   assigned_group(control=0, treatment = 1))
-  dd <- c(1, 22, 1, 1, 0, 1, 1)
+  dd <- c(1, 22, 1, 1, 1)
   
   Time <- sort(exp(Y))
   
   for (i in 1:length(Time)) {
-    sd = (YJtrans(log(Time[i]), theta) - t(parhat[1:7]) %*% dd)/s1
+    sd = (YJtrans(log(Time[i]), theta) - t(parhat[1:5]) %*% dd)/s1
     S[i] = 1 - pnorm(sd)
   }
   
@@ -3338,16 +3338,17 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   s1_noTransform <- parhat[totparl + 1]
   
   for (i in 1:length(Time)) {
-    sd = (log(Time[i]) - t(parhat_noTransform[1:7]) %*% dd)/s1_noTransform
+    sd = (log(Time[i]) - t(parhat_noTransform[1:5]) %*% dd)/s1_noTransform
     S_noTransform[i] = 1 - pnorm(sd)
   }
-  
+  print(paste("No Transformation: ",exp(qnorm(0.5)*s1_noTransform+t(parhat_noTransform[1:5]) %*% dd)))
+  print(paste("Transformation: ",exp(IYJtrans(qnorm(0.5)*s1+t(parhat[1:5]) %*% dd,theta))))
   
   plot(Time, S, type = 's', col = 1)
   lines(Time, S_noTransform, type = 's', col = 2)
   
   # Add legend
-  legend(x = 1000, y = 0.95, c("Transformation model", "No transformation"),
+  legend(x = 800, y = 0.95, c("Transformation model", "No transformation"),
          col = c(1, 2), lty = 1)
 }
 
