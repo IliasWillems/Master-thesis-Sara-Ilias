@@ -163,8 +163,7 @@ b <- -2
 c <- -5
 
 # theoretical value (according to calculations in paper)
-theoretical.value.3 <- 1/(1+exp(c))*(2*log(1+exp(c))-c-(b-c)/(exp(-b)+exp(c-b)+1)-log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b))
-
+theoretical.value.3 <- 1/(1+exp(c))*(-c-(b-c)/(exp(-b)+exp(c-b)+1)+log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b))
 
 integrand.3 <- function (nu1star, nu2star,nu3star) {
   (nu2star - nu1star)*Gumbel_pdf(nu1star)*Gumbel_pdf(nu2star)*Gumbel_pdf(nu3star)
@@ -172,20 +171,27 @@ integrand.3 <- function (nu1star, nu2star,nu3star) {
 
 int.approx.3 <- 0
 
-# This takes some time
+# This takes a long time
 for (nu1star in nu1star.eval.points) {
+  if (which(nu1star.eval.points == nu1star) %% 100 == 0) {
+    message(100*which(nu1star.eval.points == nu1star)/length(nu1star.eval.points), "% completion")
+  }
   for (nu2star in nu2star.eval.points) {
     for (nu3star in nu3star.eval.points) {
       if (nu3star > b + nu1star) {
         if(nu2star < nu3star-c)
-          int.approx.3 <- int.approx.3 + integrand.3(nu1star, nu2star, nu3star)*(cell.width^2)
+          int.approx.3 <- int.approx.3 + integrand.3(nu1star, nu2star, nu3star)*(cell.width^3)
       }
     }
   }
 }
 
 data.frame("theoretical value" = c(theoretical.value.3), "numeric value" = c(int.approx.3))
-# Different values?
+
+# This now gives
+#
+#   theoretical.value numeric.value
+# 1         0.2243771     0.2263654
 
 
 # Check first integral
@@ -227,6 +233,9 @@ data.frame("theoretical value" = c(theoretical.value.3.2), "numeric value" = c(i
 
 # Check third integral
 
+b <- 5
+c <- 2
+
 integrand.3.3 <- function(nu1star){
   integrand.3.3.1 <-1/(1+exp(c))*(0.5772156649+log(1+exp(c))-(b-c)*exp(-exp(-b-nu1star)*(1+exp(c)))+expint_E1((1+exp(c))*exp(-b-nu1star))-(nu1star+c))*Gumbel_pdf(nu1star)
   integrand.3.3.2 <- (integrate(sub_function,0,exp(c-b-nu1star))$value+(1-Gumbel_cdf(b+nu1star))*expint_E1(exp(c-b-nu1star)))*Gumbel_pdf(nu1star)
@@ -236,13 +245,20 @@ integrand.3.3 <- function(nu1star){
 theoretical.value.3.3 <- 1/(1+exp(c))*(-c-(b-c)/(exp(-b)+exp(c-b)+1)+log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b))
 
 int.approx.3.3 <- 0
+
+# Shouldn't this just be multiplying with cell.width instead of cell.width^2
+# Trying with cell.width instead gives much more similar, though maybe still
+# not satisfactory results.
 for (nu1star in nu1star.eval.points) {
-  int.approx.3.3 <- int.approx.3.3 + integrand.3.3(nu1star)*(cell.width^2)
+  int.approx.3.3 <- int.approx.3.3 + integrand.3.3(nu1star)*(cell.width)
 }
 
 data.frame("theoretical value" = c(theoretical.value.3.3), "numeric value" = c(int.approx.3.3))
 
-# Problem
+# This now gives:
+# 
+#   theoretical.value numeric.value
+# 1         0.2243771     0.2243771
 
 
 # Check third integral in pieces
@@ -296,14 +312,14 @@ data.frame("theoretical value" = c(theoretical.value.3.3.5), "numeric value" = c
 
 InnerFunc2 <- function(w){exp(-w)/w}
 InnerIntegral2 = function(nu1star) { sapply(nu1star, 
-                                           function(nu1star) { integrate(InnerFunc2, exp(c-b-nu1star), 10000000)$value })*Gumbel_pdf(nu1star)*(1-Gumbel_cdf(b+nu1star)) }
-int.approx.3.3.6 <- integrate(InnerIntegral2,-Inf,Inf)$value
+                                           function(nu1star) { integrate(InnerFunc2, max(exp(c-b-nu1star), 0.000000001), 50, subdivisions = 20000)$value})*Gumbel_pdf(nu1star)*(1-Gumbel_cdf(b+nu1star)) }
+int.approx.3.3.6 <- integrate(InnerIntegral2,0,500)$value
 
 
 theoretical.value.3.3.6 <- log(1+exp(b-c))-log(1+exp(b-c)+exp(-c))/(1+exp(-b))
 
 data.frame("theoretical value" = c(theoretical.value.3.3.6), "numeric value" = c(int.approx.3.3.6))
-# Different values
+# Still different values
 
 # Second step page 65
 InnerFunc3 <- function(nu1star){exp(-nu1star-exp(-nu1star))-exp(-nu1star-exp(-nu1star)*(1+exp(-b)))}
