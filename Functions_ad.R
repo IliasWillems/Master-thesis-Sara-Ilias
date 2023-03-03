@@ -2899,6 +2899,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   Z = data[,parl+1]
   W = data[,parl+2]
   XandW = as.matrix(cbind(data[,3],X,W))
+  Xi=1-Delta
   
   # Estimate V
   gammaest <- nloptr(x0=rep(0,parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma)),ub=c(rep(Inf,parlgamma)),
@@ -2914,7 +2915,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
   
   # Independent model for starting values sigmas and theta.
-  parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
+  parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
   #
@@ -2935,7 +2936,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
   initd[length(initd) - 2] <- 0
   
-  parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
+  parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                   eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
   # Concatenate estimated coefficients vector for the models for transformed event
@@ -2951,7 +2952,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   # [20:25] : gamma
   parhatG = c(parhat,as.vector(gammaest))
   
-  Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+  Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
   
   # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta
   # (i.e. H_delta).
@@ -2995,7 +2996,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   
   for (i in 1:n)
   {
-    J1 = jacobian(LikF,parhat,Y=Y[i],Delta=Delta[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
+    J1 = jacobian(LikF,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
     gi = rbind(gi,c(J1))
   }
   
@@ -3075,10 +3076,10 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   initE[length(initE) - 2] <- 0
   
   # Estimate the parameters
-  parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,0.99,2,2),
+  parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,0.99,2,2),
                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
-  H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+  H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,Xi=Xi,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
   H1I = ginv(H1)
   se1 = sqrt(abs(diag(H1I)));
   
@@ -3133,7 +3134,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   
   parhatGI = c(parhat1,as.vector(gammaest))
   
-  HgammaI = hessian(LikIGamma2,parhatGI,Y=Y,Delta=Delta,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+  HgammaI = hessian(LikIGamma2,parhatGI,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
   
   HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
   HIInd = ginv(HInd)
@@ -3143,7 +3144,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   giI = c()
   
   for (i in 1:n) {
-    J1I = jacobian(LikI,parhat1,Y=Y[i],Delta=Delta[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
+    J1I = jacobian(LikI,parhat1,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
     giI = rbind(giI,c(J1I))
   }
   
@@ -3266,15 +3267,15 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   s1 <- parhat[totparl + 1]
   
   # parameter vector:
-  # c(intercept, age, has_highschool_degree(1=yes), white(yes=1), married(yes=1),
+  # c(intercept, age, has_highschool_degree(1=yes),
   #   participated_in_study(no=0, otherwise=1),
   #   assigned_group(control=0, treatment = 1))
-  dd <- c(1, 22, 1, 1, 0, 1, 1)
+  dd <- c(1, 22, 1, 1, 1)
   
   Time <- sort(exp(Y))
   
   for (i in 1:length(Time)) {
-    sd = (YJtrans(log(Time[i]), theta) - t(parhat[1:7]) %*% dd)/s1
+    sd = (YJtrans(log(Time[i]), theta) - t(parhat[1:5]) %*% dd)/s1
     S[i] = 1 - pnorm(sd)
   }
   
@@ -3337,16 +3338,17 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   s1_noTransform <- parhat[totparl + 1]
   
   for (i in 1:length(Time)) {
-    sd = (log(Time[i]) - t(parhat_noTransform[1:7]) %*% dd)/s1_noTransform
+    sd = (log(Time[i]) - t(parhat_noTransform[1:5]) %*% dd)/s1_noTransform
     S_noTransform[i] = 1 - pnorm(sd)
   }
-  
+  print(paste("No Transformation: ",exp(qnorm(0.5)*s1_noTransform+t(parhat_noTransform[1:5]) %*% dd)))
+  print(paste("Transformation: ",exp(IYJtrans(qnorm(0.5)*s1+t(parhat[1:5]) %*% dd,theta))))
   
   plot(Time, S, type = 's', col = 1)
   lines(Time, S_noTransform, type = 's', col = 2)
   
   # Add legend
-  legend(x = 1000, y = 0.95, c("Transformation model", "No transformation"),
+  legend(x = 800, y = 0.95, c("Transformation model", "No transformation"),
          col = c(1, 2), lty = 1)
 }
 
