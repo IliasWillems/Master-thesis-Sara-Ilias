@@ -1,0 +1,1009 @@
+
+######################### functions Yeo-Johnson ################################
+
+log_transform = function(y)   
+{ 
+  transform_y = (y>0)*y+(y<=0)*1 # sy>0 --> condition is a check
+  return(log(transform_y)) 
+} 
+
+power_transform = function(y,pw) 
+{ 
+  transform_y = (y>0)*y+(y<=0)*1  # sy>0
+  return(transform_y^pw) 
+} 
+
+YJtrans = function(y,theta) # Yeo-Johnson transformation 
+{ 
+  sg = y>=0 
+  if (theta==0) {temp = log_transform(y+1)*sg+(1-sg)*(0.5-0.5*(y-1)^2)} 
+  if (theta==2) {temp = sg*(-0.5+0.5*(y+1)^2)-log_transform(-y+1)*(1-sg)} 
+  if ((theta!=0) & (theta!=2)) {temp = sg*(power_transform(y+1,theta)-1)/theta+(1-sg)*(1-power_transform(-y+1,2-theta))/(2-theta)} 
+  return(temp) 
+} 
+
+IYJtrans = function(y,theta) # Inverse of Yeo-Johnson transformation 
+{ 
+  sg = y>=0 
+  if (theta==0) {temp =(exp(y)-1)*sg+(1-sg)*(1-power_transform(-2*y+1,0.5))} 
+  if (theta==2) {temp = sg*(-1+power_transform(2*y+1,0.5))+(1-exp(-y))*(1-sg)} 
+  if ((theta!=0) & (theta!=2)) {temp = sg*(power_transform(abs(theta)*y+1,1/theta)-1)+(1-sg)*(1-power_transform(1-(2-theta)*y,1/(2-theta)))} 
+  return(temp) 
+} 
+
+DYJtrans = function(y,theta) # Derivative of Yeo-Johnson transformation 
+{ 
+  sg = y>=0 
+  temp = power_transform(y+1,theta-1)*sg+power_transform(-y+1,1-theta)*(1-sg) 
+  return(temp) 
+} 
+
+
+###################### data simulating function ################################
+
+dat.sim.reg = function(n,par,iseed){
+  
+  set.seed(iseed)
+  beta = par[[1]]
+  eta = par[[2]]
+  sd = par[[3]]
+  gamma1 = par[[4]]
+  gamma2 = par[[5]]
+  
+  # bivariate normal distribution of error terms
+  mu = c(0,0)
+  sigma = matrix(c(sd[1]^2,sd[1]*sd[2]*sd[3], sd[1]*sd[2]*sd[3], sd[2]^2),ncol=2)
+  err = mvrnorm(n, mu =mu , Sigma=sigma)
+  
+  # error T and error C
+  err1 = err[,1]
+  err2 = err[,2]
+  
+  x0 = rep(1,n)  # to keep the intercept
+  
+  x1 = rnorm(n,0,1)
+  
+
+ # Bernoulli with p =1/3
+  W = sample(c(0,1,2), n, replace = TRUE) # sample 0 and 1,2 with equal probability
+  W1 = ifelse(W==1,1,0)
+  W2 = ifelse(W==2,1,0)
+  XandW=as.matrix(cbind(x0,x1,W1,W2))
+
+  
+  nu1star <- rgumbel(n)
+  nu2star <- rgumbel(n)
+  nu3star <- rgumbel(n)
+  
+  nu1 <- nu2star-nu1star
+  nu2 <- nu3star-nu1star
+  
+  #gamma1 = gamma1star-gamma3star
+  #gamma2 = gamma2star-gamma3star
+  
+  a = XandW%*%(gamma1-gamma2)
+  b = XandW%*%gamma1
+  c = XandW%*%gamma2
+
+  Z1 = as.matrix(as.numeric(a>nu1)*as.numeric(b>nu2))
+  Z2 = as.matrix(as.numeric(a<nu1)*as.numeric(c>(nu2-nu1)))
+  E1.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(a/(1+exp(-a)+exp(-b))-1/(1+exp(-b))*log(1+exp(a)*(1+exp(-b))))
+  E2.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2)*(1+exp(-c)))*(-a/(exp(-a)+exp(-a-c)+1)+log(exp(a)+exp(-c)+1))
+  E3.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))*(1/(1+exp(c))*(-c-(b-c)/(exp(-b)+exp(c-b)+1)+log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b)))
+  
+  E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
+  E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
+  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(-c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+  
+  
+  realV1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
+  realV2 = Z1*E1.nu2+Z2*E2.nu2+(1-Z1-Z2)*E3.nu2
+
+  
+  Mgen = matrix(c(x0,x1,Z1,Z2,realV1,realV2),ncol=parl,nrow=n)  # matrix containing all covariates
+  T = IYJtrans(Mgen%*%beta+err1,sd[4]) # model time with real covariates
+  C = IYJtrans(Mgen%*%eta+err2,sd[5]) # model censoring with real covariates
+  A = runif(n,0,15)
+  M = matrix(c(x0,x1,Z1,Z2,W1,W2),ncol=parl,nrow=n)    # data matrix
+
+
+  # nr of columns is nr of parameters
+  # nr of rows is sample size
+  
+  Y = pmin(T,C,A) # observed non-transformed time
+  d1 = as.numeric(Y==T) # censoring indicator
+  xi1 = ifelse(Y==T,0,as.numeric(Y==C))
+  data = cbind(Y,d1,xi1,M,realV1,realV2) # data consisting of observed time,
+                            # censoring indicator, all data and the control function
+  
+  return(data)
+}
+
+
+######################## likelihood function ###################################
+
+
+# maximum likelihood for Gamma (Z discrete)
+LikGamma2 = function(par,Y,M){ 
+  W=as.matrix(M)
+  gamma1= as.matrix(par[1:parlgamma])
+  gamma2= as.matrix(par[(parlgamma+1):(2*parlgamma)])
+  Y1 = Y[,1]
+  Y2 = Y[,2]
+  
+  tot = (exp(W%*%gamma1)/(1+exp(W%*%gamma1)+exp(W%*%gamma2)))^Y1*(exp(W%*%gamma2)/(1+exp(W%*%gamma1)+exp(W%*%gamma2)))^Y2*(1/(1+exp(W%*%gamma1)+exp(W%*%gamma2)))^(1-Y1-Y2)
+  p1 = pmax(tot,1e-100)
+  Logn = sum(log(p1)); 
+  return(-Logn)
+}
+
+###########################################################
+# joint model with dependent censoring and transformation #
+###########################################################
+
+# - Used in second step of 2-step estimation
+# - Does assume dependent censoring
+# - Uses Yeo-Johnson transformation
+
+LikF = function(par,Y,Delta,Xi,M){ 
+  M = as.matrix(M)
+  k = ncol(M)
+  l = 2*k
+  v = k+1
+  
+  beta = as.matrix(par[1:k])
+  eta = as.matrix(par[v:l])
+  sigma1 = par[l+1]
+  sigma2 = par[l+2]
+  rho = par[l+3]
+  theta_1 = par[l+4]
+  theta_2 = par[l+5]
+  
+  transY.T=YJtrans(Y,theta_1)
+  DtransY.T=DYJtrans(Y,theta_1)
+  transY.C=YJtrans(Y,theta_2)
+  DtransY.C=DYJtrans(Y,theta_2)
+  
+  z1 = (transY.T-(M%*%beta))/sigma1 # b_T
+  z2 = ((transY.C-(rho*sigma2/sigma1)*transY.T)-(M%*%eta-rho*(sigma2/sigma1)*(M%*%beta)))/(sigma2*((1-rho^2)^0.5)) #  term within Phi for T
+  z3 = (transY.C-(M%*%eta))/sigma2 # b_C
+  z4 = ((transY.T-(rho*sigma1/sigma2)*transY.C)-(M%*%beta-rho*(sigma1/sigma2)*(M%*%eta)))/(sigma1*(1-rho^2)^0.5) #  term within Phi for C
+  tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*((1/sigma2)*dnorm(z3)*(1-pnorm(z4))*DtransY.C)^Xi*(pbinorm(q1=-z1,q2=-z3,cov12=rho))^(1-(Delta+Xi)) # likelihood
+  p1 = pmax(tot,1e-100)   
+  Logn = sum(log(p1)); 
+  return(-Logn)
+}
+
+
+# needed for Hessian matrix when Z is binary
+
+# - Does assume endogeneity
+#   - Z is binary
+# - Does assume dependent censoring
+# - Uses Yeo-Johnson transformation
+
+LikFG2 = function(par,Y,Delta,Xi,M){ 
+  M = as.matrix(M)
+  k = ncol(M)-4
+  l = 2*(k+2)
+  v = k+5
+
+  beta = as.matrix(par[1:k])
+  alphaT.1 = par[k+1]
+  alphaT.2 = par[k+2]
+  lambdaT.1 = par[k+3]
+  lambdaT.2 = par[k+4]
+  eta = as.matrix(par[v:l])
+  alphaC.1 = par[l+1]
+  alphaC.2 = par[l+2]
+  lambdaC.1 = par[l+3]
+  lambdaC.2 = par[l+4]
+  sigma1 = par[l+5]
+  sigma2 = par[l+6]
+  rho = par[l+7]
+  theta_1 = par[l+8]
+  theta_2 = par[l+9]
+  gamma1 = as.matrix(par[(l+10):(l+9+parlgamma)])
+  gamma2 = as.matrix(par[(l+10+parlgamma):(l+9+2*parlgamma)])
+  
+  X=as.matrix(M[,1:k])
+  Z1=as.matrix(M[,(k+1)])
+  Z2=as.matrix(M[,(k+2)])
+  W=as.matrix(M[,(k+3):(k+4)])
+  XandW=as.matrix(cbind(X,W))
+  
+  a = XandW%*%(gamma1-gamma2)
+  b = XandW%*%gamma1
+  c = XandW%*%gamma2
+  
+  E1.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(a/(1+exp(-a)+exp(-b))-1/(1+exp(-b))*log(1+exp(a)*(1+exp(-b))))
+  E2.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2)*(1+exp(-c)))*(-a/(exp(-a)+exp(-a-c)+1)+log(exp(a)+exp(-c)+1))
+  E3.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))*(1/(1+exp(c))*(-c-(b-c)/(exp(-b)+exp(c-b)+1)+log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b)))
+  
+  E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
+  E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
+  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(-c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+  
+  
+  Vest1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
+  Vest2 = Z1*E1.nu2+Z2*E2.nu2+(1-Z1-Z2)*E3.nu2
+  
+  
+  transY.T=YJtrans(Y,theta_1)
+  DtransY.T=DYJtrans(Y,theta_1)
+  transY.C=YJtrans(Y,theta_2)
+  DtransY.C=DYJtrans(Y,theta_2)
+  
+  z1 = (transY.T-(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2))/sigma1
+  z2 = ((transY.C-rho*sigma2/sigma1*transY.T)-((X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2)-rho*(sigma2/sigma1)*(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2)))/(sigma2*(1-rho^2)^0.5)
+  z3 = (transY.C-(X%*%eta+Z1*alphaC.1+z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
+  z4 = ((transY.T-rho*sigma1/sigma2*transY.C)-((X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2)-rho*(sigma1/sigma2)*(X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2)))/(sigma1*(1-rho^2)^0.5)
+  tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*(((1/sigma2)*dnorm(z3)*(1-pnorm(z4))*DtransY.C)^Xi)*((pbinorm(q1=-z1,q2=-z3,cov12=rho))^(1-(Delta+Xi))) # likelihood
+  p1 = pmax(tot,1e-100)   
+  Logn = sum(log(p1)); 
+  return(-Logn)
+}
+
+
+################################
+# Independent model assumption #
+################################
+
+# - Doesn't assume endogeneity
+# - Doesn't assume dependent censoring
+# - Uses Yeo-Johnson transformation
+
+LikI = function(par,Y,Delta,Xi,M){ 
+  M = as.matrix(M)
+  k = ncol(M)
+  l = 2*k
+  v = k+1
+  beta = as.matrix(par[1:k]) # parameters related to T
+  eta = as.matrix(par[v:l]) # parameters related to C
+  sigma1 = par[l+1] # sigma of T
+  sigma2 = par[l+2] # sigma of C
+  theta_1 = par[l+3]
+  theta_2 = par[l+4]
+  
+  transY.T=YJtrans(Y,theta_1)
+  DtransY.T=DYJtrans(Y,theta_1)
+  transY.C=YJtrans(Y,theta_2)
+  DtransY.C=DYJtrans(Y,theta_2)
+  
+  z1 = (transY.T-(M%*%beta))/sigma1 # term within Phi for T (rho = 0)
+  z2 = (transY.C-(M%*%eta))/sigma2 # term withing Phi for C (rho = 0)
+  
+  # likelihood (when rho = 0)
+  # tot gives sample size number of rows
+  tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*(((1/sigma2)*dnorm(z2)*(1-pnorm(z1))*DtransY.C)^Xi)*((pbinorm(q1=-z1,q2=-z2,cov12=0))^(1-(Delta+Xi)))
+  p1 = pmax(tot,1e-100) 
+  Logn = sum(log(p1)); # calculate loglikelihood
+  return(-Logn)
+}
+
+# needed for Hessian matrix
+
+# no dependent censoring (Z discrete)
+
+# - Does assume endogeneity
+#   - Z is binary
+# - Doesn't assume dependent censoring
+# - Uses Yeo-Johnson transformation
+
+LikIGamma2 = function(par,Y,Delta,Xi,M){ 
+  M = as.matrix(M)
+  k = ncol(M)-4
+  l = 2*(k+2)
+  v = k+5
+  
+  beta = as.matrix(par[1:k])
+  alphaT.1 = par[k+1]
+  alphaT.2 = par[k+2]
+  lambdaT.1 = par[k+3]
+  lambdaT.2 = par[k+4]
+  eta = as.matrix(par[v:l])
+  alphaC.1 = par[l+1]
+  alphaC.2 = par[l+2]
+  lambdaC.1 = par[l+3]
+  lambdaC.2 = par[l+4]
+  sigma1 = par[l+5]
+  sigma2 = par[l+6]
+  theta_1 = par[l+7]
+  theta_2 = par[l+8]
+  gamma1 = as.matrix(par[(l+9):(l+8+parlgamma)])
+  gamma2 = as.matrix(par[(l+9+parlgamma):(l+8+2*parlgamma)])
+  
+  
+  X=as.matrix(M[,1:k])
+  Z1=as.matrix(M[,(k+1)])
+  Z2=as.matrix(M[,(k+2)])
+  W=as.matrix(M[,(k+3):(k+4)])
+  XandW=as.matrix(cbind(X,W))
+  
+  a = XandW%*%(gamma1-gamma2)
+  b = XandW%*%gamma1
+  c = XandW%*%gamma2
+  
+  E1.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(a/(1+exp(-a)+exp(-b))-1/(1+exp(-b))*log(1+exp(a)*(1+exp(-b))))
+  E2.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2)*(1+exp(-c)))*(-a/(exp(-a)+exp(-a-c)+1)+log(exp(a)+exp(-c)+1))
+  E3.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))*(1/(1+exp(c))*(-c-(b-c)/(exp(-b)+exp(c-b)+1)+log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b)))
+  
+  E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
+  E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
+  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(-c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+  
+  
+  Vest1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
+  Vest2 = Z1*E1.nu2+Z2*E2.nu2+(1-Z1-Z2)*E3.nu2
+  
+  transY.T=YJtrans(Y,theta_1)
+  DtransY.T=DYJtrans(Y,theta_1)
+  transY.C=YJtrans(Y,theta_2)
+  DtransY.C=DYJtrans(Y,theta_2)
+  
+  z1 = (transY.T-(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2))/sigma1
+  z2 = (transY.C-(X%*%eta+Z1*alphaC.1+z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
+  
+  tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*(((1/sigma2)*dnorm(z2)*(1-pnorm(z1))*DtransY.C)^Xi)*((pbinorm(q1=-z1,q2=-z2,cov12=0))^(1-(Delta+Xi)))
+  p1 = pmax(tot,1e-100)
+  Logn = sum(log(p1)); 
+  return(-Logn)
+}
+
+
+######################## simulation function ###################################
+
+
+SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.value.theta_2) {
+  sum = c()
+  sum1 = c()
+  sum2 = c()
+  sum3 = c()
+  per=0
+  per2=0
+  results = c()
+  results1 = c()
+  results2 = c()
+  results3 = c()
+  
+  for (i in 1:nsim) {
+    # i = 1 # for testing
+    
+    if (round(i %% (nsim/10)) == 0) {cat((i/nsim)*100,"%", "\n", sep="")}
+    
+    data = dat.sim.reg(n,parN,iseed+i)
+    
+    Y = data[,1]
+    Delta = data[,2]
+    Xi = data[,3]
+    X = data[,(5:(parl-1))]
+    Z1 = data[,parl]
+    Z2 = data[,(parl+1)]
+    Z = data[,(parl:(parl+1))]
+    W = data[,(parl+2):(parl+3)]
+    XandW = cbind(data[,4],X,W)
+    
+    gammaest <- nloptr(x0=rep(0,2*parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma*2)),ub=c(rep(Inf,parlgamma*2)),
+                       eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    gamma1 <- gammaest[1:parlgamma]  
+    gamma2 <- gammaest[(parlgamma+1):(2*parlgamma)]
+    
+    a = XandW%*%(gamma1-gamma2)
+    b = XandW%*%gamma1
+    c = XandW%*%gamma2
+    
+    E1.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(a/(1+exp(-a)+exp(-b))-1/(1+exp(-b))*log(1+exp(a)*(1+exp(-b))))
+    E2.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2)*(1+exp(-c)))*(-a/(exp(-a)+exp(-a-c)+1)+log(exp(a)+exp(-c)+1))
+    E3.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))*(1/(1+exp(c))*(-c-(b-c)/(exp(-b)+exp(c-b)+1)+log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b)))
+    
+    E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
+    E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
+    E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(-c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+    
+    
+    V1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
+    V2 = Z1*E1.nu2+Z2*E2.nu2+(1-Z1-Z2)*E3.nu2
+    
+    
+    # Estimated V
+    M = cbind(data[,4:(1+parl)],V1,V2)
+    
+    # No V (using W instead)
+    MnoV = data[,4:(3+parl)]
+    
+    # True value for V
+    MrealV = cbind(data[,4:(1+parl)],data[,(ncol(data)-1)],data[,ncol(data)])
+    
+    per=per+table(Delta)[2]
+    per2=per2+table(Xi)[2]
+    
+    # Assign starting values:
+    # - beta = zero-vector
+    # - eta = zero-vector
+    # - sigma1 = 1
+    # - sigma2 = 1 
+    # - theta_1 = init.value.theta_1
+    # - theta_2 = init.value.theta_2
+    init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
+    
+    # Independent model for starting values sigma and theta.
+    #
+    # Note the difference with the version of Gilles: the likelihood function now
+    # takes an extra argument (= theta), so the vector of initial values needs
+    # to take this into account. Also the vectors for the lower -and upper bound
+    # of the parameters ('lb' and 'ub') should take this into account. Note that
+    # theta is a value between 0 and 2.
+    parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
+                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    # Model with no V --> remove data for v from data matrix
+    ME = M[,-((ncol(M)-1):ncol(M))]
+    
+    # Remove coefficients for v in the vector parhat1. Add starting value for rho.
+    # The final vector will be of the form:
+    # [1:4] : beta
+    # [5:8] : eta
+    # [9]   : sigma1
+    # [10]  : sigma2
+    # [11]  : rho
+    # [12]  : theta_1
+    # [13]  : theta_2
+    
+    # Remove coefficients for v
+    initE = parhat1[-parl]
+    initE = initE[-(parl-1)]
+    initE = initE[-(2*parl-2)]
+    initE = initE[-(2*parl-3)]
+    
+    # Append theta's to initE and replace the original theta_1 (now third-to-last
+    # element) with the initial value for rho.
+    initE = c(initE[-length(initE)],initE[length(initE)-1],initE[length(initE)])
+    initE[length(initE) - 2] <- 0
+    
+    # Again we make sure to properly adapt the upper -and lower bound values of
+    # theta.
+    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=ME,lb=c(rep(-Inf,(totparl-4)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-4)),Inf,Inf,0.99,2,2),
+                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,Xi=Xi,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    H1I = ginv(H1)
+    se1 = sqrt(abs(diag(H1I)));
+    
+    # Delta method variance (makes sure no negative values in CI for variance)
+    # --> Take the log of the estimates, construct CI for the log-estimates and
+    #     backtransform to the original estimates by exponentiating.
+    
+    t_s1 = 1/parhatE[totparl-3]*se1[totparl-3]
+    t_s2 = 1/parhatE[totparl-2]*se1[totparl-2]
+    
+    # Conf. interval for transf. sigma's
+    
+    ms1_l = log(parhatE[totparl-3])-1.96*t_s1 ;  ms1_u = log(parhatE[totparl-3])+1.96*t_s1 
+    ms2_l = log(parhatE[totparl]-2)-1.96*t_s2 ;  ms2_u = log(parhatE[totparl]-2)+1.96*t_s2 
+    
+    # Back transform
+    
+    S1_l = exp(ms1_l); S1_u = exp(ms1_u); S2_l = exp(ms2_l); S2_u = exp(ms2_u) 
+    
+    # Confidence interval for rho
+    
+    z1t = 0.5*(log((1+parhatE[totparl-1])/(1-parhatE[totparl-1])))     # Fisher's z transform
+    se1_z = (1/(1-parhatE[totparl-1]^2))*se1[totparl-1]
+    z1t_l = z1t-1.96*(se1_z)
+    z1t_u = z1t+1.96*(se1_z)
+    
+    
+    z1t = 0.5*(log((1+0.99)/(1-0.99)))     # Fisher's z transform
+    se1_z = (1/(1-0.99^2))*se1[totparl-1]
+    z1t_l = z1t-1.96*(se1_z)
+    z1t_u = z1t+1.96*(se1_z)
+    
+    # Back transform
+    
+    r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
+    r1_u = (exp(2*z1t_u)-1)/(exp(2*z1t_u)+1)
+    
+    # Confidence interval for theta
+    
+    r1theta1_l <- parhatE[length(parhatE)-1] - 1.96 * se1[length(parhatE)-1]
+    r1theta1_u <- parhatE[length(parhatE)-1] + 1.96 * se1[length(parhatE)-1]
+    r1theta2_l <- parhatE[length(parhatE)] - 1.96 * se1[length(parhatE)]
+    r1theta2_u <- parhatE[length(parhatE)] + 1.96 * se1[length(parhatE)]
+    
+    # Matrix of all the confidence intervals
+    EC2 = cbind(matrix(c(parhatE[1:(totparl-4)]-1.96*(se1)[1:(totparl-4)],S1_l,S2_l,r1_l, r1theta1_l, r1theta2_l),ncol=1),
+                matrix(c(parhatE[1:(totparl-4)]+1.96*(se1)[1:(totparl-4)],S1_u,S2_u,r1_u, r1theta1_u, r1theta2_u),ncol=1)) 
+    
+    
+    # Model with estimated V
+    
+    # Assign starting values
+    # - beta (6 params) = First 6 params of parhat1
+    # - eta (6 params) = Next 6 params of parhat1
+    # - sigma1 = parhat1[13]
+    # - sigma2 = parhat1[14]
+    # - rho = 0
+    # - theta_1 = parhat1[15]
+    # - theta_2 = parhat1[16]
+    
+    initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
+    initd[length(initd) - 2] <- 0
+    
+    # Again we make sure to properly adapt the upper -and lower bound values of
+    # theta.
+    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
+                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    parhatG = c(parhat,as.vector(gamma1),as.vector(gamma2))
+    # - beta (6 params) = First 6 params of parhat
+    # - eta (6 params) = Next 6 params of parhat
+    # - sigma1 = parhat[13]
+    # - sigma2 = parhat[14]
+    # - rho = parhat[15]
+    # - theta_1 = parhat[16]
+    # - theta_2 = parhat[17]
+    # - gamma1 = (intercept, gamma_X, gamma_W1, gamma_W2)
+    # - gamma2 = (intercept, gamma_X, gamma_W1, gamma_W2)
+    
+    Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    
+    # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta
+    # (i.e. H_delta).
+    H = Hgamma[1:length(initd),1:length(initd)]
+    HI = ginv(H)
+    
+    Vargamma = Hgamma[1:length(initd),(length(initd)+1):(length(initd)+2*parlgamma)]
+    
+    #-M matrix 
+    WM <- matrix(rep(0,(parlgamma*2)^2),nrow=parlgamma*2)
+    for (i in 1:n){
+      p1 <- exp(XandW[i,]%*%gamma1)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+      p2 <- exp(XandW[i,]%*%gamma2)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+      matrix <- matrix(c(p1*(1-p1),-p1*p2, -p1*p2, p2*(1-p2)),ncol=2)
+      xx <- XandW[i,]%*%t(XandW[i,])
+      WM <- WM+kronecker(matrix,xx)
+    }
+    WM <- WM/n
+    
+    MI = ginv(WM)
+    
+    sumpartvar2 = 0
+    
+    for (i in 1:n){
+      # h_m matrix
+      h_mi <- rep(0,(parlgamma*2))
+      p1 <- exp(XandW[i,]%*%gamma1)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+      p2 <- exp(XandW[i,]%*%gamma2)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+      Zp <- c(Z1[i]-p1, Z2[i]-p2)
+      h_mi <- h_mi+kronecker(Zp,XandW[i,])
+      
+      # psi matrix
+      psii = MI%*%h_mi
+      
+      # h_l matrix
+      gi = c()
+      J1 = jacobian(LikF,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
+      gi = rbind(gi,c(J1))
+      
+      gi = t(gi)
+      
+      partvar = gi + Vargamma%*%psii
+      sumpartvar2 = sumpartvar2+(partvar%*%t(partvar))
+      
+    }
+  
+
+    Epartvar2 = sumpartvar2/n  
+    
+    totvarex = HI%*%Epartvar2%*%t(HI)
+    
+    se = sqrt(abs(diag(totvarex)))
+    
+    # Delta method variance
+    
+    se_s1 = 1/parhat[totparl+1]*se[totparl+1]
+    se_s2 = 1/parhat[totparl+2]*se[totparl+2]
+    
+    # Conf. interval for transf. sigma's
+    
+    st1_l = log(parhat[totparl+1])-1.96*se_s1 ;  st1_u = log(parhat[totparl+1])+1.96*se_s1  
+    st2_l = log(parhat[totparl+2])-1.96*se_s2 ;  st2_u = log(parhat[totparl+2])+1.96*se_s2 
+    
+    # Back transform
+    
+    s1_l = exp(st1_l); s1_u = exp(st1_u); s2_l = exp(st2_l); s2_u = exp(st2_u) 
+    
+    # Confidence interval for rho
+    
+    zt = 0.5*(log((1+parhat[totparl+3])/(1-parhat[totparl+3])))     # Fisher's z transform
+    se_z = (1/(1-parhat[totparl+3]^2))*se[totparl+3]
+    zt_l = zt-1.96*(se_z)
+    zt_u = zt+1.96*(se_z)
+    
+    # Back transform
+    
+    r_l = (exp(2*zt_l)-1)/(exp(2*zt_l)+1)      
+    r_u = (exp(2*zt_u)-1)/(exp(2*zt_u)+1)
+    
+    # Confidence interval for theta
+    
+    rtheta1_l <- parhat[length(parhat)-1] - 1.96 * se[length(parhat)-1]
+    rtheta1_u <- parhat[length(parhat)-1] + 1.96 * se[length(parhat)-1]
+    rtheta2_l <- parhat[length(parhat)] - 1.96 * se[length(parhat)]
+    rtheta2_u <- parhat[length(parhat)] + 1.96 * se[length(parhat)]
+    
+    # Matrix with all confidence intervals
+    EC1 = cbind(matrix(c(parhat[1:totparl]-1.96*(se[1:totparl]),s1_l,s2_l,r_l,rtheta1_l,rtheta2_l),ncol=1),
+                matrix(c(parhat[1:totparl]+1.96*(se[1:totparl]),s1_u,s2_u,r_u,rtheta1_u, rtheta2_u), ncol=1))
+    
+    # Model with real V
+    
+    # Retake vector with initial values
+    # - beta (6 params) = First 6 params of parhat1
+    # - eta (6 params) = Next 6 params of parhat1
+    # - sigma1 = parhat1[13]
+    # - sigma2 = parhat1[14]
+    # - rho = 0
+    # - theta_1 = parhat1[15]
+    # - theta_2 = parhat1[16]
+    
+    initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
+    initd[length(initd) - 2] <- 0
+    
+    # Again we make sure to properly adapt the upper -and lower bound values of
+    # theta.
+    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
+                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    Hre = hessian(LikF,parhatre,Y=Y,Delta=Delta,Xi=Xi,M=MrealV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    HreI = ginv(Hre)
+    
+    sere = sqrt(abs(diag(HreI)))
+    
+    # Delta method variance
+    
+    sere_s1 = 1/parhatre[totparl+1]*sere[totparl+1]
+    sere_s2 = 1/parhatre[totparl+2]*sere[totparl+2]
+    
+    # Conf. interval for transf. sigma's
+    
+    st1re_l = log(parhatre[totparl+1])-1.96*sere_s1 ;  st1re_u = log(parhatre[totparl+1])+1.96*sere_s1 
+    st2re_l = log(parhatre[totparl+2])-1.96*sere_s2 ;  st2re_u = log(parhatre[totparl+2])+1.96*sere_s2 
+    
+    # Back transfrom
+    
+    s1re_l = exp(st1re_l); s1re_u = exp(st1re_u); s2re_l = exp(st2re_l); s2re_u = exp(st2re_u) 
+    
+    # Confidence interval for rho
+    
+    ztre = 0.5*(log((1+parhatre[totparl+3])/(1-parhatre[totparl+3])))     # Fisher's z transform
+    sere_z = (1/(1-parhatre[totparl+3]^2))*sere[totparl+3]
+    ztre_l = ztre-1.96*(sere_z)
+    ztre_u = ztre+1.96*(sere_z)
+    
+    # Back transform
+    
+    rre_l = (exp(2*ztre_l)-1)/(exp(2*ztre_l)+1)      
+    rre_u = (exp(2*ztre_u)-1)/(exp(2*ztre_u)+1)
+    
+    # Confidence interval for theta
+    
+    rretheta1_l <- parhatre[length(parhatre)-1] - 1.96 * sere[length(parhatre)-1]
+    rretheta1_u <- parhatre[length(parhatre)-1] + 1.96 * sere[length(parhatre)-1]
+    rretheta2_l <- parhatre[length(parhatre)] - 1.96 * sere[length(parhatre)]
+    rretheta2_u <- parhatre[length(parhatre)] + 1.96 * sere[length(parhatre)]
+    
+    EC3 = cbind(matrix(c(parhatre[1:totparl]-1.96*(sere[1:totparl]),s1re_l,s2re_l,rre_l,rretheta1_l, rretheta2_l),ncol=1),
+                matrix(c(parhatre[1:totparl]+1.96*(sere[1:totparl]),s1re_u,s2re_u,rre_u,rretheta1_u, rretheta2_u), ncol=1))
+    # Model with estimated V but assuming independence
+    
+    # We construct the vector with
+    # [1:4]   : params for beta
+    # [5:8]   : params for eta
+    # [9]     : param for sigma1
+    # [10]    : param for sigma2
+    # [11]    : param for theta_1
+    # [12]    : param for theta_2
+    # [13:15] : params for (gamma_0, gamma_X, gamma_W)
+    parhatGI = c(parhat1,as.vector(gamma1),as.vector(gamma2))
+    
+    HgammaI = hessian(LikIGamma2,parhatGI,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    
+    HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
+    HIInd = ginv(HInd)
+    
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+(2*parlgamma)-1)]
+   
+    
+    sumpartvar2I = 0
+    
+    for (i in 1:n){
+      # h_m matrix
+      h_mi <- rep(0,(parlgamma*2))
+      p1 <- exp(XandW[i,]%*%gamma1)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+      p2 <- exp(XandW[i,]%*%gamma2)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+      Zp <- c(Z1[i]-p1, Z2[i]-p2)
+      h_mi <- h_mi+kronecker(Zp,XandW[i,])
+      
+      # psi matrix
+      psii = MI%*%h_mi
+      
+      # h_l matrix
+      giI = c()
+      J1I = jacobian(LikI,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
+      giI = rbind(giI,c(J1I))
+      
+      giI = t(giI)
+      
+      partvarI = giI + VargammaI%*%psii
+      sumpartvar2I = sumpartvar2I+(partvarI%*%t(partvarI))
+      
+    }
+    
+    
+    Epartvar2I = sumpartvar2I/n  
+    
+    totvarexI = HIInd%*%Epartvar2I%*%t(HIInd)
+    
+    seI = sqrt(abs(diag(totvarexI)))
+    
+    # Delta method variance
+    
+    se_s1I = 1/parhat1[totparl+1]*seI[totparl+1]
+    se_s2I = 1/parhat1[totparl+2]*seI[totparl+2]
+    
+    # Conf. interval for transf. sigma's
+    
+    st1_lI = log(parhat1[totparl+1])-1.96*se_s1I ;  st1_uI = log(parhat1[totparl+1])+1.96*se_s1I  
+    st2_lI = log(parhat1[totparl+2])-1.96*se_s2I ;  st2_uI = log(parhat1[totparl+2])+1.96*se_s2I 
+    
+    # Back transform
+    
+    s1_lI = exp(st1_lI); s1_uI = exp(st1_uI); s2_lI = exp(st2_lI); s2_uI = exp(st2_uI)
+    
+    # Confidence interval for theta
+    
+    rItheta1_l <- parhat1[length(parhat1)-1] - 1.96 * seI[length(parhat1)-1]
+    rItheta1_u <- parhat1[length(parhat1)-1] + 1.96 * seI[length(parhat1)-1]
+    rItheta2_l <- parhat1[length(parhat1)] - 1.96 * seI[length(parhat1)]
+    rItheta2_u <- parhat1[length(parhat1)] + 1.96 * seI[length(parhat1)]
+    
+    EC4 = cbind(matrix(c(parhat1[1:totparl]-1.96*(seI[1:totparl]),s1_lI,s2_lI,rItheta1_l, rItheta2_l),ncol=1),
+                matrix(c(parhat1[1:totparl]+1.96*(seI[1:totparl]),s1_uI,s2_uI,rItheta1_u, rItheta2_u), ncol=1))
+    
+    results = rbind(results,c(parhat,se,c(t(EC1))))
+    results1 = rbind(results1,c(parhatE,se1,c(t(EC2))))
+    results2 = rbind(results2,c(parhatre,sere,c(t(EC3))))
+    results3 = rbind(results3,c(parhat1,seI,c(t(EC4))))
+  }
+  
+  print(per/(n*nsim))     #percentage of censoring
+  print(per2/(n*nsim))
+  
+  #
+  # Results of model with estimated V
+  #
+  
+  # Put all parameters (except gamma) into a vector
+  par0 = c(parN[[1]],parN[[2]],parN[[3]])
+  par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
+  
+  # par0:
+  # - [1:6] : beta
+  # - [7:12]: eta
+  # - [13]  : sigma1
+  # - [14]  : sigma2
+  # - [15]  : rho
+  # - [16]  : theta_1
+  # - [17]  : theta_2
+  #
+  # - totparl = 12
+  
+  # Statistics on the parameter estimates
+  Bias = apply(results[,1:(totparl+5)]-par0m,2,mean)
+  ESE = apply(results[,1:(totparl+5)],2,sd)
+  RMSE = sqrt(apply((results[,1:(totparl+5)]-par0m)^2,2,mean))
+  
+  # Statistics on the parameter standard deviations
+  MSD  = apply(results[,((totparl+5)+1):(2*(totparl+5))],2, mean)
+  
+  # Statistics on the parameter CI's: for each parameter, check how many times the
+  # true value is contained in the estimated confidence interval. We divide by
+  # nsim to obtain a percentage.
+  CP = rep(0,totparl+5)
+  datacp = results[,(2*(totparl+5)+1):(4*(totparl+5))]
+  for(i in 1:(totparl+5)) {
+    index=c(2*i-1,2*i)
+    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
+  } 
+  
+  summary = cbind(Bias,ESE,MSD,RMSE,CP) 
+  
+  #
+  # Model with no V
+  #
+  
+  # Put all parameters (except gamma) into a vector
+  par0 = c(parN[[1]],parN[[2]],parN[[3]])
+  
+  # Remove parameters pertaining to V
+  par0 = par0[-(parl)]
+  par0 = par0[-(parl-1)]
+  par0 = par0[-(2*parl-2)]
+  par0 = par0[-(2*parl-3)]
+  par0m = matrix(par0,nsim,(totparl+1),byrow=TRUE)
+  
+  # par0:
+  # - [1:4] : beta
+  # - [5:8] : eta
+  # - [9]   : sigma1
+  # - [10]  : sigma2
+  # - [11]  : rho
+  # - [12]  : theta_1
+  # - [13]  : theta_2
+  #
+  # - totparl = 12
+  
+  # Statistics on the parameter estimates
+  Bias = apply(results1[,1:(totparl+1)]-par0m,2,mean)
+  ESE = apply(results1[,1:(totparl+1)],2,sd)
+  RMSE = sqrt(apply((results1[,1:(totparl+1)]-par0m)^2,2,mean))
+  
+  # Statistics on the parameter standard deviations
+  MSD  = apply(results1[,((totparl+1) + 1):(2*(totparl+1))],2,mean)
+  
+  # Statistics on the parameter CI's: for each parameter, check how many times the
+  # true value is contained in the estimated confidence interval. We divide by
+  # nsim to obtain a percentage.
+  CP = rep(0,(totparl+1))
+  datacp = results1[,(2*(totparl+1)+1):(4*(totparl+1))]
+  for(i in 1:(totparl+1)){
+    index = c(2*i-1,2*i)
+    CP[i] = sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
+  } 
+  
+  summary1 = cbind(Bias,ESE,MSD,RMSE,CP) 
+  
+  #
+  # Model with real V
+  #
+  
+  par0 = c(parN[[1]],parN[[2]],parN[[3]])
+  par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
+  # par0:
+  # - [1:6] : beta
+  # - [7:12]: eta
+  # - [13]  : sigma1
+  # - [14]  : sigma2
+  # - [15]  : rho
+  # - [16]  : theta_1
+  # - [17]  : theta_2
+  #
+  # - totparl = 12
+  
+  # Statistics on the parameter estimates
+  Bias = apply(results2[,1:(totparl+5)]-par0m,2,mean)
+  ESE = apply(results2[,1:(totparl+5)],2,sd)
+  RMSE = sqrt(apply((results2[,1:(totparl+5)]-par0m)^2,2,mean))
+  
+  # Statistics on the standard deviation estimates
+  MSD  = apply(results2[,((totparl+5)+1):(2*(totparl+5))],2, mean)
+  
+  # Statistics on the parameter CI's: for each parameter, check how many times the
+  # true value is contained in the estimated confidence interval. We divide by
+  # nsim to obtain a percentage.
+  CP = rep(0,totparl+5)
+  datacp = results[,(2*(totparl+5)+1):(4*(totparl+5))]
+  for(i in 1:(totparl+5)) {
+    index=c(2*i-1,2*i)
+    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
+  } 
+  
+  summary2 = cbind(Bias,ESE,MSD,RMSE,CP) 
+  
+  #
+  # Results of model with estimated V but independence
+  #
+  
+  par0 = c(parN[[1]],parN[[2]],parN[[3]][1],parN[[3]][2], parN[[3]][4], parN[[3]][5])
+  par0m = matrix(par0,nsim,(totparl+4),byrow=TRUE)
+  # par0:
+  # - [1:6] : beta
+  # - [7:12]: eta
+  # - [13]   : sigma1
+  # - [14]  : sigma2
+  # - [15]  : theta_1
+  # - [16]  : theta_2
+  #
+  # - totparl = 12
+  
+  # Statistics on the parameter estimates.
+  Bias = apply(results3[,1:(totparl+4)]-par0m,2,mean)
+  ESE = apply(results3[,1:(totparl+4)],2,sd)
+  RMSE = sqrt(apply((results3[,1:(totparl+4)]-par0m)^2,2,mean))
+  
+  # Statistics on the standard deviation estimates
+  MSD  = apply(results3[,((totparl+4)+1):(2*(totparl+4))],2, mean)
+  
+  CP = rep(0,totparl+4)
+  datacp = results3[,(2*(totparl+4) + 1):(4*(totparl+4))]
+  for (i in 1:(totparl+4)) {
+    index=c(2*i-1,2*i)
+    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
+  } 
+  
+  summary3 = cbind(Bias,ESE,MSD,RMSE,CP) 
+  
+  sum = summary
+  sum1 = summary1
+  sum2 = summary2
+  sum3 = summary3
+  
+  ## Results of model with estimated V
+  
+  colnames(sum) = c("Bias","ESD","ASE","RMSE","CR")
+  rownames(sum) = namescoef
+  
+  # Make nice Latex table
+  xtab = xtable(sum)
+  
+  # set to 3 significant digits
+  digits(xtab) = rep(3,6)
+  
+  header= c("sample size",n)
+  addtorow = list()
+  addtorow$pos = list(-1)
+  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+  
+  # Save table code in .txt-file. Also add header row.
+  print.xtable(xtab,file=paste0("YJ_multipleEV_estV_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+  print(xtab, add.to.row=addtorow, include.colnames=TRUE)
+  
+  ## Results of model with no V
+  
+  colnames(sum1)=c("Bias","ESD","ASE","RMSE","CR")
+  namescoefr=namescoef[-(parl)]
+  namescoefr=namescoef[-(parl-1)]
+  namescoefr=namescoefr[-(2*parl-2)]
+  namescoefr=namescoefr[-(2*parl-3)]
+  rownames(sum1)=namescoefr
+  xtab1 = xtable(sum1)
+  digits(xtab1) = rep(3,6)
+  header= c("sample size",n)
+  addtorow = list()
+  addtorow$pos = list(-1)
+  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+  
+  print.xtable(xtab1,file=paste0("YJ_multipleEV_noV_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+  print(xtab1, add.to.row=addtorow, include.colnames=TRUE)
+  
+  ## Results of model with real V
+  
+  colnames(sum2) = c("Bias","ESD","ASE","RMSE","CR")
+  rownames(sum2) = namescoef
+  xtab2 = xtable(sum2)
+  digits(xtab2) = rep(3,6)
+  header= c("sample size",n)
+  addtorow = list()
+  addtorow$pos = list(-1)
+  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+  
+  print.xtable(xtab2,file=paste0("YJ_multipleEV_realV_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+  print(xtab2, add.to.row=addtorow, include.colnames=TRUE)
+  
+  ## Results of model with estimated V but independence
+  
+  colnames(sum3) = c("Bias","ESD","ASE","RMSE","CR")
+  rownames(sum3) = c(namescoef[1:(length(namescoef)-3)],namescoef[length(namescoef)-1],namescoef[length(namescoef)])
+  xtab3 = xtable(sum3)
+  digits(xtab3) = rep(3,6)
+  header= c("sample size",n)
+  addtorow = list()
+  addtorow$pos = list(-1)
+  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+  
+  print.xtable(xtab3,file=paste0("YJ_multipleEV_IndEstV_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+  print(xtab3, add.to.row=addtorow, include.colnames=TRUE)
+}
+
