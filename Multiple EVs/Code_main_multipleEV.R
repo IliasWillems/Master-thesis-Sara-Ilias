@@ -13,7 +13,9 @@ parN = list(beta=c(2.5,2.6,1.8,-1,2,1.5),eta=c(1.8,0.9,0.5,1.5,-2.2,1.3),sd=c(1.
 parl = length(parN[[1]])
 totparl = 2*parl
 parlgamma = (parl-nEV)
-namescoef =  c("beta_{T,0}","beta_{T,1}","alpha_{T,1}","alpha_{T,2}","lambda_{T,1}","lambda_{T,2}","beta_{C,0}","beta_{C,1}","alpha_{C,1}","alpha_{C,2}","lambda_{C,1}","lambda_{C,2}","sigma_T","sigma_C","rho","theta_1","theta_2")
+namescoef =  c("beta_{T,0}","beta_{T,1}","alpha_{T,1}","alpha_{T,2}","lambda_{T,1}","lambda_{T,2}",
+               "beta_{C,0}","beta_{C,1}","alpha_{C,1}","alpha_{C,2}","lambda_{C,1}","lambda_{C,2}",
+               "sigma_T","sigma_C","rho","theta_1","theta_2")
 
 samsize= c(250, 500, 1000)
 

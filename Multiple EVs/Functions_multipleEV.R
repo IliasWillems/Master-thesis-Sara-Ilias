@@ -168,9 +168,9 @@ LikF = function(par,Y,Delta,Xi,M){
   transY.C=YJtrans(Y,theta_2)
   DtransY.C=DYJtrans(Y,theta_2)
   
-  z1 = (transY.T-(M%*%beta))/sigma1 # b_T
+  z1 = (transY.T-(M%*%beta))/sigma1 # b_T/sigma1
   z2 = ((transY.C-(rho*sigma2/sigma1)*transY.T)-(M%*%eta-rho*(sigma2/sigma1)*(M%*%beta)))/(sigma2*((1-rho^2)^0.5)) #  term within Phi for T
-  z3 = (transY.C-(M%*%eta))/sigma2 # b_C
+  z3 = (transY.C-(M%*%eta))/sigma2 # b_C/sigma2
   z4 = ((transY.T-(rho*sigma1/sigma2)*transY.C)-(M%*%beta-rho*(sigma1/sigma2)*(M%*%eta)))/(sigma1*(1-rho^2)^0.5) #  term within Phi for C
   tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*((1/sigma2)*dnorm(z3)*(1-pnorm(z4))*DtransY.C)^Xi*(pbinorm(q1=-z1,q2=-z3,cov12=rho))^(1-(Delta+Xi)) # likelihood
   p1 = pmax(tot,1e-100)   
@@ -188,9 +188,9 @@ LikF = function(par,Y,Delta,Xi,M){
 
 LikFG2 = function(par,Y,Delta,Xi,M){ 
   M = as.matrix(M)
-  k = ncol(M)-4
+  k = ncol(M) - 4
   l = 2*(k+2)
-  v = k+5
+  v = k + 5
 
   beta = as.matrix(par[1:k])
   alphaT.1 = par[k+1]
@@ -240,7 +240,7 @@ LikFG2 = function(par,Y,Delta,Xi,M){
   
   z1 = (transY.T-(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2))/sigma1
   z2 = ((transY.C-rho*sigma2/sigma1*transY.T)-((X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2)-rho*(sigma2/sigma1)*(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2)))/(sigma2*(1-rho^2)^0.5)
-  z3 = (transY.C-(X%*%eta+Z1*alphaC.1+z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
+  z3 = (transY.C-(X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
   z4 = ((transY.T-rho*sigma1/sigma2*transY.C)-((X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2)-rho*(sigma1/sigma2)*(X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2)))/(sigma1*(1-rho^2)^0.5)
   tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*(((1/sigma2)*dnorm(z3)*(1-pnorm(z4))*DtransY.C)^Xi)*((pbinorm(q1=-z1,q2=-z3,cov12=rho))^(1-(Delta+Xi))) # likelihood
   p1 = pmax(tot,1e-100)   
@@ -346,7 +346,7 @@ LikIGamma2 = function(par,Y,Delta,Xi,M){
   DtransY.C=DYJtrans(Y,theta_2)
   
   z1 = (transY.T-(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2))/sigma1
-  z2 = (transY.C-(X%*%eta+Z1*alphaC.1+z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
+  z2 = (transY.C-(X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
   
   tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*(((1/sigma2)*dnorm(z2)*(1-pnorm(z1))*DtransY.C)^Xi)*((pbinorm(q1=-z1,q2=-z2,cov12=0))^(1-(Delta+Xi)))
   p1 = pmax(tot,1e-100)
