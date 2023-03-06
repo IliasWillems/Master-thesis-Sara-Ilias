@@ -313,7 +313,7 @@ data.frame("theoretical value" = c(theoretical.value.3.3.5), "numeric value" = c
 InnerFunc2 <- function(w){exp(-w)/w}
 InnerIntegral2 = function(nu1star) { sapply(nu1star, 
                                            function(nu1star) { integrate(InnerFunc2, max(exp(c-b-nu1star), 0.000000001), 50, subdivisions = 20000)$value})*Gumbel_pdf(nu1star)*(1-Gumbel_cdf(b+nu1star)) }
-int.approx.3.3.6 <- integrate(InnerIntegral2,0,500)$value
+int.approx.3.3.6 <- integrate(InnerIntegral2,0,Inf)$value
 
 
 theoretical.value.3.3.6 <- log(1+exp(b-c))-log(1+exp(b-c)+exp(-c))/(1+exp(-b))
