@@ -3,7 +3,6 @@ library(nloptr)
 library(numDeriv)
 library(xtable)
 library(VGAM)
-library(ordinal)
 source("Functions_multipleEV.R")
 
 nEV <- 3-1
@@ -23,9 +22,9 @@ samsize= c(250, 500, 1000)
 
 for(l in samsize)
 {
-  nsim = 100
+  nsim = 10
   myseed = 876661
   message("sample size = ",l)
-  SimulationCI22_SaraIlias(l,nsim,myseed,init.value.theta_1, init.value.theta_2)
+  SimulationCI22_EV(l,nsim,myseed,init.value.theta_1, init.value.theta_2)
 }
 

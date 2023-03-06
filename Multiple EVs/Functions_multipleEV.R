@@ -97,7 +97,7 @@ dat.sim.reg.Zbin = function(n,par,iseed){
   
   E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
   E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
-  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(-c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
   
   
   realV1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
@@ -226,7 +226,7 @@ LikFG2 = function(par,Y,Delta,Xi,M){
   
   E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
   E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
-  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(-c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
   
   
   Vest1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
@@ -240,7 +240,7 @@ LikFG2 = function(par,Y,Delta,Xi,M){
   
   z1 = (transY.T-(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2))/sigma1
   z2 = ((transY.C-rho*sigma2/sigma1*transY.T)-((X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2)-rho*(sigma2/sigma1)*(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2)))/(sigma2*(1-rho^2)^0.5)
-  z3 = (transY.C-(X%*%eta+Z1*alphaC.1+z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
+  z3 = (transY.C-(X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
   z4 = ((transY.T-rho*sigma1/sigma2*transY.C)-((X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2)-rho*(sigma1/sigma2)*(X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2)))/(sigma1*(1-rho^2)^0.5)
   tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*(((1/sigma2)*dnorm(z3)*(1-pnorm(z4))*DtransY.C)^Xi)*((pbinorm(q1=-z1,q2=-z3,cov12=rho))^(1-(Delta+Xi))) # likelihood
   p1 = pmax(tot,1e-100)   
@@ -334,7 +334,7 @@ LikIGamma2 = function(par,Y,Delta,Xi,M){
   
   E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
   E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
-  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(-c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
   
   
   Vest1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
@@ -346,7 +346,7 @@ LikIGamma2 = function(par,Y,Delta,Xi,M){
   DtransY.C=DYJtrans(Y,theta_2)
   
   z1 = (transY.T-(X%*%beta+Z1*alphaT.1+Z2*alphaT.2+Vest1*lambdaT.1+Vest2*lambdaT.2))/sigma1
-  z2 = (transY.C-(X%*%eta+Z1*alphaC.1+z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
+  z2 = (transY.C-(X%*%eta+Z1*alphaC.1+Z2*alphaC.2+Vest1*lambdaC.1+Vest2*lambdaC.2))/sigma2
   
   tot = (((1/sigma1)*dnorm(z1)*(1-pnorm(z2))*DtransY.T)^Delta)*(((1/sigma2)*dnorm(z2)*(1-pnorm(z1))*DtransY.C)^Xi)*((pbinorm(q1=-z1,q2=-z2,cov12=0))^(1-(Delta+Xi)))
   p1 = pmax(tot,1e-100)
@@ -358,7 +358,7 @@ LikIGamma2 = function(par,Y,Delta,Xi,M){
 ######################## simulation function ###################################
 
 
-SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.value.theta_2) {
+SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.theta_2) {
   sum = c()
   sum1 = c()
   sum2 = c()
@@ -403,7 +403,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
     E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
-    E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(-c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+    E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
     
     
     V1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
@@ -484,7 +484,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     # Conf. interval for transf. sigma's
     
     ms1_l = log(parhatE[totparl-3])-1.96*t_s1 ;  ms1_u = log(parhatE[totparl-3])+1.96*t_s1 
-    ms2_l = log(parhatE[totparl]-2)-1.96*t_s2 ;  ms2_u = log(parhatE[totparl]-2)+1.96*t_s2 
+    ms2_l = log(parhatE[totparl-2])-1.96*t_s2 ;  ms2_u = log(parhatE[totparl-2])+1.96*t_s2 
     
     # Back transform
     
@@ -552,6 +552,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     
     Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
     
+  
     # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta
     # (i.e. H_delta).
     H = Hgamma[1:length(initd),1:length(initd)]
@@ -568,37 +569,30 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
       xx <- XandW[i,]%*%t(XandW[i,])
       WM <- WM+kronecker(matrix,xx)
     }
-    WM <- WM/n
-    
+
     MI = ginv(WM)
     
-    sumpartvar2 = 0
+    Epartvar2 = 0
     
     for (i in 1:n){
       # h_m matrix
-      h_mi <- rep(0,(parlgamma*2))
       p1 <- exp(XandW[i,]%*%gamma1)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
       p2 <- exp(XandW[i,]%*%gamma2)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
       Zp <- c(Z1[i]-p1, Z2[i]-p2)
-      h_mi <- h_mi+kronecker(Zp,XandW[i,])
+      h_mi <- kronecker(Zp,XandW[i,])
       
       # psi matrix
       psii = MI%*%h_mi
       
       # h_l matrix
-      gi = c()
       J1 = jacobian(LikF,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
-      gi = rbind(gi,c(J1))
-      
-      gi = t(gi)
-      
-      partvar = gi + Vargamma%*%psii
-      sumpartvar2 = sumpartvar2+(partvar%*%t(partvar))
+
+      partvar = t(J1) + Vargamma%*%psii
+      Epartvar2 = Epartvar2+(partvar%*%t(partvar))
       
     }
   
 
-    Epartvar2 = sumpartvar2/n  
     
     totvarex = HI%*%Epartvar2%*%t(HI)
     
@@ -720,34 +714,27 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+(2*parlgamma)-1)]
    
     
-    sumpartvar2I = 0
+    
+    Epartvar2I = 0
     
     for (i in 1:n){
       # h_m matrix
-      h_mi <- rep(0,(parlgamma*2))
       p1 <- exp(XandW[i,]%*%gamma1)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
       p2 <- exp(XandW[i,]%*%gamma2)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
       Zp <- c(Z1[i]-p1, Z2[i]-p2)
-      h_mi <- h_mi+kronecker(Zp,XandW[i,])
+      h_mi <- kronecker(Zp,XandW[i,])
       
       # psi matrix
       psii = MI%*%h_mi
       
       # h_l matrix
-      giI = c()
-      J1I = jacobian(LikI,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
-      giI = rbind(giI,c(J1I))
+      J1I = jacobian(LikI,parhat1,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
       
-      giI = t(giI)
-      
-      partvarI = giI + VargammaI%*%psii
-      sumpartvar2I = sumpartvar2I+(partvarI%*%t(partvarI))
+      partvarI = t(J1I) + VargammaI%*%psii
+      Epartvar2I = Epartvar2I+(partvarI%*%t(partvarI))
       
     }
-    
-    
-    Epartvar2I = sumpartvar2I/n  
-    
+
     totvarexI = HIInd%*%Epartvar2I%*%t(HIInd)
     
     seI = sqrt(abs(diag(totvarexI)))
@@ -968,7 +955,7 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
   
   colnames(sum1)=c("Bias","ESD","ASE","RMSE","CR")
   namescoefr=namescoef[-(parl)]
-  namescoefr=namescoef[-(parl-1)]
+  namescoefr=namescoefr[-(parl-1)]
   namescoefr=namescoefr[-(2*parl-2)]
   namescoefr=namescoefr[-(2*parl-3)]
   rownames(sum1)=namescoefr
