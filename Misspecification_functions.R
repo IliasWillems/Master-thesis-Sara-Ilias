@@ -389,8 +389,8 @@ data.misspecified.heteroscedastic = function(n,par,iseed,Zbin,Wbin){
   for (A in 1:n){
     # take exponential such that product always positive
     # divide by 10 to fade out differences
-    prod_t <- exp((Mgen%*%beta)[A]/10)
-    prod_c <- exp((Mgen%*%eta)[A]/10)
+    prod_t <- exp((Mgen%*%beta)[A]/5)
+    prod_c <- exp((Mgen%*%eta)[A]/5)
     err[A,] <- mvrnorm(1, mu=mu, Sigma=matrix(c(sd[1]^2*(1+prod_t),sd[1]*sd[2]*sd[3]*sqrt((1+prod_t)*(1+prod_c)),sd[1]*sd[2]*sd[3]*sqrt((1+prod_t)*(1+prod_c)),sd[2]^2*(1+prod_c)),nrow=2,byrow=TRUE))
   }
   
