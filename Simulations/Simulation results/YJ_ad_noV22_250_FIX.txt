@@ -1,0 +1,22 @@
+% latex table generated in R 4.0.3 by xtable 1.8-4 package
+% Wed Mar 08 12:18:09 2023
+\begin{table}[!]
+\centering
+\begin{tabular}{rrrrrr}
+  & \multicolumn{1}{c}{sample size = }& \multicolumn{1}{c}{250}& \multicolumn{1}{c}{, nsim = }& \multicolumn{1}{c}{2500}\\ \hline
+ & Bias & ESD & ASE & RMSE & CR \\ 
+  \hline
+$\beta_{T,0}$ & 2.752 & 1.013 & 0.790 & 2.933 & 0.062 \\ 
+  $\beta_{T,1}$ & 0.607 & 0.282 & 0.236 & 0.669 & 0.279 \\ 
+  $\alpha_T$ & -4.730 & 0.921 & 0.737 & 4.819 & 0.003 \\ 
+  $\beta_{C,0}$ & -2.367 & 0.216 & 0.204 & 2.377 & 0.000 \\ 
+  $\beta_{C,1}$ & -0.583 & 0.208 & 0.198 & 0.619 & 0.160 \\ 
+  $\alpha_C$ & 5.517 & 1.022 & 1.221 & 5.611 & 0.008 \\ 
+  $\sigma_T$ & 0.609 & 0.142 & 0.133 & 0.626 & 0.001 \\ 
+  $\sigma_C$ & 0.511 & 0.158 & 0.146 & 0.535 & 0.024 \\ 
+  $\rho$ & -0.526 & 0.434 & 0.313 & 0.681 & 0.642 \\ 
+  $\theta_1$ & 0.026 & 0.063 & 0.059 & 0.068 & 0.904 \\ 
+  $\theta_2$ & 0.194 & 0.086 & 0.088 & 0.212 & 0.396 \\ 
+   \hline
+\end{tabular}
+\end{table}

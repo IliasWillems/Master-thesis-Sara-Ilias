@@ -30,3 +30,4 @@ for(l in samsize)
   SimulationCI22_SaraIlias(l,nsim,myseed,init.value.theta_1, init.value.theta_2) # Design 4
 }
 
+

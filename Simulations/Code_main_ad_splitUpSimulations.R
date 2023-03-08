@@ -3,6 +3,8 @@ library(nloptr)
 library(numDeriv)
 library(xtable)
 library(VGAM)
+library(foreach)
+library(doParallel)
 source("Functions_ad_splitUp_Simulations.R")
 
 init.value.theta_1=1
@@ -69,6 +71,38 @@ summarize_results_full("CI12")
 summarize_results_full("CI21")
 summarize_results_full("CI22")
 
+################################################################################
 
+# Due to an issue with the function simulationCI22, the confidence intervals for
+# rho in the case of the naive model where not computed properly. Therefore, we
+# redo that part of the simulation.
 
+samsize = c(250, 500, 1000)
+nsim <- 2500
+
+# Number of available cores
+detectCores()
+
+# Make sure that the number provided is less than the number of cores.
+clust <- makeCluster(10)
+registerDoParallel(clust)
+
+for (n in samsize) {
+  message("Starting iteration with sample size ",n)
+  
+  start.time <- Sys.time()
+  SimulationCI22_fix_naive(n, nsim, myseed, init.value.theta_1, init.value.theta_2)
+  
+  # Tell the time this iteration ran
+  diff <- difftime(Sys.time(), start.time, units = "mins")
+  diff <- as.integer(round(diff))
+  if (diff > 60) {
+    message("This iteration took ", floor(diff / 60), " hours and ", diff %% 60, " minutes.")
+  } else {
+    message("This iteration took ", diff, " minutes.")
+  }
+  message("")
+}
+
+stopCluster()
 

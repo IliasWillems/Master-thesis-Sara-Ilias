@@ -194,13 +194,13 @@ par.heteroscedastic <- list(beta, eta, sd, gamma)
 
 # <<<...........................................................................
 
-iseed <- 424242
-type <- "t"
+iseed <- 53147
+type <- "skew"
 nruns <- 100
 B <- 250
 n <- 2000
 
-for (part in 5:5) {
+for (part in 4:5) {
   message("Running part ", part, " out of 5.")
   message("")
   

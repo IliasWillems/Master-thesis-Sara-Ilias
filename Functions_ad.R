@@ -2392,12 +2392,6 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
     z1t_l = z1t-1.96*(se1_z)
     z1t_u = z1t+1.96*(se1_z)
     
-    
-    z1t = 0.5*(log((1+0.99)/(1-0.99)))     # Fisher's z transform
-    se1_z = (1/(1-0.99^2))*se1[totparl+1]
-    z1t_l = z1t-1.96*(se1_z)
-    z1t_u = z1t+1.96*(se1_z)
-    
     # Back transform
     
     r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      

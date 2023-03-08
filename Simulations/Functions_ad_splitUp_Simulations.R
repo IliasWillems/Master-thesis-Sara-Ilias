@@ -41,7 +41,11 @@ DYJtrans = function(y,theta) # Derivative of Yeo-Johnson transformation
 
 ###################### data simulating function ################################
 
-dat.sim.reg = function(n,par,iseed,Zbin,Wbin){
+dat.sim.reg = function(n,par,iseed,Zbin,Wbin) {
+  
+  parl = length(par[[1]])
+  totparl = 2*parl
+  parlgamma = (parl-1)
   
   set.seed(iseed)
   beta = par[[1]]
@@ -1863,12 +1867,6 @@ SimulationCI22_splitup = function(n, nsim, iseed, init.value.theta_1,
     z1t_l = z1t-1.96*(se1_z)
     z1t_u = z1t+1.96*(se1_z)
     
-    
-    z1t = 0.5*(log((1+0.99)/(1-0.99)))     # Fisher's z transform
-    se1_z = (1/(1-0.99^2))*se1[totparl+1]
-    z1t_l = z1t-1.96*(se1_z)
-    z1t_u = z1t+1.96*(se1_z)
-    
     # Back transform
     
     r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
@@ -2178,6 +2176,212 @@ SimulationCI22_splitup = function(n, nsim, iseed, init.value.theta_1,
   # Write to log that simulation finished
   cat(paste0(Sys.time(), " - Finished part ", part.to.evaluate, " out of ", number.of.parts), 
       file = "Data 2500 simulations CI22/Size ",n,"/log.txt", sep = "\n", append=TRUE)
+}
+
+SimulationCI22_fix_naive <- function(n, nsim, iseed, init.value.theta_1, init.value.theta_2) {
+  sum1 <- c()
+  per <- 0
+  per2 <- 0 
+  results1 <- c()
+  
+  results1 <- foreach(i = 1:nsim,
+                      .packages = c("nloptr",  "MASS", "numDeriv", "VGAM"),
+                      .export = c("parN"),
+                      .combine = 'rbind') %dopar%
+  {
+    parl = length(parN[[1]])
+    totparl = 2*parl
+    parlgamma = (parl-1)
+    
+    # Load in functions again
+    source("Functions_ad_splitUp_Simulations.R")
+    
+    if (round(i %% (nsim/10)) == 0) {cat((i/nsim)*100,"%", "\n", sep="")}
+    
+    data = dat.sim.reg(n,parN,iseed+i,2,2)
+    
+    Y = data[,1]
+    Delta = data[,2]
+    Xi = data[,3]
+    X = data[,(5:(parl+1))]
+    Z = data[,parl+2]
+    W = data[,parl+3]
+    XandW = cbind(data[,4],X,W)
+    
+    gammaest <- nloptr(x0=rep(0,parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma)),ub=c(rep(Inf,parlgamma)),
+                       eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    V <- (1-Z)*((1+exp(XandW%*%gammaest))*log(1+exp(XandW%*%gammaest))-(XandW%*%gammaest)*exp(XandW%*%gammaest))-Z*((1+exp(-(XandW%*%gammaest)))*log(1+exp(-(XandW%*%gammaest)))+(XandW%*%gammaest)*exp(-(XandW%*%gammaest)))
+    
+    
+    # Estimated V
+    M = cbind(data[,4:(2+parl)],V)
+    
+    # No V (using W instead)
+    MnoV = data[,4:(3+parl)]
+    
+    # True value for V
+    MrealV = cbind(data[,4:(2+parl)],data[,ncol(data)])
+    
+    per=per+table(Delta)[2]
+    per2=per2+table(Xi)[2]
+    
+    # Assign starting values:
+    # - beta = zero-vector
+    # - eta = zero-vector
+    # - sigma1 = 1
+    # - sigma2 = 1 
+    # - theta_1 = init.value.theta_1
+    # - theta_2 = init.value.theta_2
+    init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
+    
+    # Independent model for starting values sigma and theta.
+    #
+    # Note the difference with the version of Gilles: the likelihood function now
+    # takes an extra argument (= theta), so the vector of initial values needs
+    # to take this into account. Also the vectors for the lower -and upper bound
+    # of the parameters ('lb' and 'ub') should take this into account. Note that
+    # theta is a value between 0 and 2.
+    parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
+                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    # Model with no V --> remove data for v from data matrix
+    ME = M[,-ncol(M)]
+    
+    # Remove coefficients for v in the vector parhat1. Add starting value for rho.
+    # The final vector will be of the form:
+    # [1:3] : beta
+    # [4:6] : eta
+    # [7]   : sigma1
+    # [8]   : sigma2
+    # [9]   : rho
+    # [10]  : theta_1
+    # [11]  : theta_2
+    
+    # Remove coefficients for v
+    initE = parhat1[-parl]
+    initE = initE[-(2*parl-1)]
+    
+    # Append theta's to initE and replace the original theta_1 (now third-to-last
+    # element) with the initial value for rho.
+    initE = c(initE[-length(initE)],initE[length(initE)-1],initE[length(initE)])
+    initE[length(initE) - 2] <- 0
+    
+    # Again we make sure to properly adapt the upper -and lower bound values of
+    # theta.
+    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,0.99,2,2),
+                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,Xi=Xi,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    H1I = ginv(H1)
+    se1 = sqrt(abs(diag(H1I)));
+    
+    # Delta method variance (makes sure no negative values in CI for variance)
+    # --> Take the log of the estimates, construct CI for the log-estimates and
+    #     backtransform to the original estimates by exponentiating.
+    
+    t_s1 = 1/parhatE[totparl-1]*se1[totparl-1]
+    t_s2 = 1/parhatE[totparl]*se1[totparl]
+    
+    # Conf. interval for transf. sigma's
+    
+    ms1_l = log(parhatE[totparl-1])-1.96*t_s1 ;  ms1_u = log(parhatE[totparl-1])+1.96*t_s1 
+    ms2_l = log(parhatE[totparl])-1.96*t_s2 ;  ms2_u = log(parhatE[totparl])+1.96*t_s2 
+    
+    # Back transform
+    
+    S1_l = exp(ms1_l); S1_u = exp(ms1_u); S2_l = exp(ms2_l); S2_u = exp(ms2_u) 
+    
+    # Confidence interval for rho
+    
+    z1t = 0.5*(log((1+parhatE[totparl+1])/(1-parhatE[totparl+1])))     # Fisher's z transform
+    se1_z = (1/(1-parhatE[totparl+1]^2))*se1[totparl+1]
+    z1t_l = z1t-1.96*(se1_z)
+    z1t_u = z1t+1.96*(se1_z)
+    
+    # Back transform
+    
+    r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
+    r1_u = (exp(2*z1t_u)-1)/(exp(2*z1t_u)+1)
+    
+    # Confidence interval for theta
+    
+    r1theta1_l <- parhatE[length(parhatE)-1] - 1.96 * se1[length(parhatE)-1]
+    r1theta1_u <- parhatE[length(parhatE)-1] + 1.96 * se1[length(parhatE)-1]
+    r1theta2_l <- parhatE[length(parhatE)] - 1.96 * se1[length(parhatE)]
+    r1theta2_u <- parhatE[length(parhatE)] + 1.96 * se1[length(parhatE)]
+    
+    # Matrix of all the confidence intervals
+    EC2 = cbind(matrix(c(parhatE[1:(totparl-2)]-1.96*(se1)[1:(totparl-2)],S1_l,S2_l,r1_l, r1theta1_l, r1theta2_l),ncol=1),
+                matrix(c(parhatE[1:(totparl-2)]+1.96*(se1)[1:(totparl-2)],S1_u,S2_u,r1_u, r1theta1_u, r1theta2_u),ncol=1))
+    
+    c(parhatE,se1,c(t(EC2)))
+  }
+  
+  percentage1 <- per/(n*nsim)     #percentage of censoring
+  percentage2 <- per2/(n*nsim)
+  
+  print(paste0("percentage censoring: ", percentage1))
+  print(paste0("percentage administrative censoring: ", percentage2))
+  
+  # Put all parameters (except gamma) into a vector
+  par0 = c(parN[[1]],parN[[2]],parN[[3]])
+  
+  # Remove parameters pertaining to V
+  par0 = par0[-(parl)]
+  par0 = par0[-(2*parl-1)]
+  par0m = matrix(par0,nsim,(totparl+3),byrow=TRUE)
+  
+  # par0:
+  # - [1:3] : beta
+  # - [4:6] : eta
+  # - [7]   : sigma1
+  # - [8]   : sigma2
+  # - [9]   : rho
+  # - [10]  : theta_1
+  # - [11]  : theta_2
+  #
+  # - totparl = 8
+  
+  # Statistics on the parameter estimates
+  Bias = apply(results1[,1:(totparl+3)]-par0m,2,mean)
+  ESE = apply(results1[,1:(totparl+3)],2,sd)
+  RMSE = sqrt(apply((results1[,1:(totparl+3)]-par0m)^2,2,mean))
+  
+  # Statistics on the parameter standard deviations
+  MSD  = apply(results1[,((totparl+3) + 1):(2*(totparl+3))],2,mean)
+  
+  # Statistics on the parameter CI's: for each parameter, check how many times the
+  # true value is contained in the estimated confidence interval. We divide by
+  # nsim to obtain a percentage.
+  CP = rep(0,(totparl+3))
+  datacp = results1[,(2*(totparl+3)+1):(4*(totparl+3))]
+  for(i in 1:(totparl+3)){
+    index = c(2*i-1,2*i)
+    CP[i] = sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
+  } 
+  
+  sum1 = cbind(Bias,ESE,MSD,RMSE,CP) 
+  
+  header = c("sample size = ", n, ", nsim = ", nsim)
+  numbers <- "22"
+  
+  colnames(sum1)=c("Bias","ESD","ASE","RMSE","CR")
+  namescoefr=namescoef[-(parl)]
+  namescoefr=namescoefr[-(2*parl-1)]
+  rownames(sum1)=namescoefr
+  xtab1 = xtable(sum1)
+  digits(xtab1) = rep(3,6)
+  addtorow = list()
+  addtorow$pos = list(-1)
+  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+  
+  message("Results for naive model")
+  print.xtable(xtab1, file = paste0("Simulation results/YJ_ad_noV", numbers, "_",
+                                    n, "_FIX.txt"),
+               add.to.row = addtorow, append = TRUE, table.placement = "!",
+               sanitize.text.function = function(x){x})
+  print(xtab1, add.to.row = addtorow, include.colnames = TRUE,
+        sanitize.text.function = function(x){x})
 }
 
 summarize_results = function(CI,n) {
