@@ -432,12 +432,6 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
     init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
     
     # Independent model for starting values sigma and theta.
-    #
-    # Note the difference with the version of Gilles: the likelihood function now
-    # takes an extra argument (= theta), so the vector of initial values needs
-    # to take this into account. Also the vectors for the lower -and upper bound
-    # of the parameters ('lb' and 'ub') should take this into account. Note that
-    # theta is a value between 0 and 2.
     parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
@@ -497,12 +491,6 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
     z1t_l = z1t-1.96*(se1_z)
     z1t_u = z1t+1.96*(se1_z)
     
-    
-    z1t = 0.5*(log((1+0.99)/(1-0.99)))     # Fisher's z transform
-    se1_z = (1/(1-0.99^2))*se1[totparl-1]
-    z1t_l = z1t-1.96*(se1_z)
-    z1t_u = z1t+1.96*(se1_z)
-    
     # Back transform
     
     r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
@@ -539,6 +527,7 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
     parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
+    # Stack the vectors of estimates.
     parhatG = c(parhat,as.vector(gamma1),as.vector(gamma2))
     # - beta (6 params) = First 6 params of parhat
     # - eta (6 params) = Next 6 params of parhat

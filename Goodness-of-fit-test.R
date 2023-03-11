@@ -194,8 +194,8 @@ par.heteroscedastic <- list(beta, eta, sd, gamma)
 
 # <<<...........................................................................
 
-iseed <- 53147
-type <- "skew"
+iseed <- 135468
+type <- "heteroscedastic"
 nruns <- 100
 B <- 250
 n <- 2000
