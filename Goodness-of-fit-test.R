@@ -194,13 +194,13 @@ par.heteroscedastic <- list(beta, eta, sd, gamma)
 
 # <<<...........................................................................
 
-iseed <- 135468
+iseed <- 768266
 type <- "heteroscedastic"
 nruns <- 100
 B <- 250
-n <- 2000
+n <- 1000
 
-for (part in 4:5) {
+for (part in 3:5) {
   message("Running part ", part, " out of 5.")
   message("")
   
