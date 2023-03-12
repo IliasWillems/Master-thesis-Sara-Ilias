@@ -63,10 +63,23 @@ init.value.theta_1 <- 1
 init.value.theta_2 <- 2
 DataApplicationJPTA(data, init.value.theta_1, init.value.theta_2) # Takes about 1 minute to run
 
+# Goodness-of-fit test
 
+source("Goodness-of-fit-test_functions.R")
 
+# Since the goodness-of-fit test assumes administrative censoring, it assumes
+# both a column for delta and xi in the data
+data_GOF <- dataset
+data_GOF$xi <- 1 - data_GOF$delta
+data_GOF <- as.matrix(data_GOF[,c(6, 5, 8, 7, 1:4)])
 
+n <- nrow(data_GOF)
+iseed <- 35497438
+Zbin <- 2
+Wbin <- 2
+B <- 500
 
+GOF_test_parallel(data_GOF, B, iseed, Zbin, Wbin, display.plot = TRUE)
 
 
 
