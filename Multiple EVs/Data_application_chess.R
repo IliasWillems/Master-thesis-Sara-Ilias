@@ -12,13 +12,26 @@ library(numDeriv)
 library(xtable)
 library(VGAM)
 library(dplyr)
+library(nnet)
 
 chess <- chess[!(is.na(chess$time)),]
+
 # time
 Y <- as.matrix(log(chess$time))
-# Administrative censoring
-# Dependent censoring --> won by resignation (if someone was clearly winning)
-Delta <- as.matrix(chess$delta)
+
+# Even though the data has a column with a censoring indicator, we update it to
+# make it more accurate.
+
+# Administrative censoring: "draw", "game abandoned", "unknown end", "won by resignation" (if neither player was clearly winning)
+# Dependent censoring: "won by resignation" (if someone was clearly winning)
+Delta <- as.numeric(chess$delta == 1)
+Xi <- as.numeric((chess$delta == 0) & (chess$termination == "won by resignation"))
+
+chess$delta <- Delta
+chess$xi <- Xi
+
+# Reorder so xi is the third column
+chess <- chess[, c(1, 2, ncol(chess), 3:(ncol(chess) - 1))]
 
 chess$intercept <- rep(1, nrow(chess))
 
@@ -81,7 +94,7 @@ for (i in 1:nrow(chess)) {
 hist(chess$opening_cat)
 
 
-# Just to try out if the variance drops drastically, duplicate the data set 10
+# Just to try out if the variance drops drastically, duplicate the data set 6
 # times.
 
 # chess <- rbind(chess, chess, chess, chess, chess, chess)
@@ -106,12 +119,13 @@ colnames(chess)
 
 # NOTE: as soon as data set is fixed, we should also include ELO of white and
 #       black player.
-X = as.matrix(subset(chess, select = c(ncol(chess)-1, 6, 7, 8)))
+X = as.matrix(subset(chess, select = c("intercept", "white_elo", "black_elo",
+                                       "poi_is_white")))
 
 # Define some useful variables
-parl <- ncol(X) + 4
+parl <- ncol(X) + 4 # The ones defined above + 2 dummy endogenous + 2 control function
 totparl <- 2*parl
-parlgamma <- ncol(X)+1
+parlgamma <- ncol(X)+1 # The ones defined above + instrumental var
 
 # Create data matrix of confounded variable. Z is the indicator of which opening
 # was played in the game. Z is a multi-level categorical variable. This means
@@ -125,11 +139,16 @@ W = as.matrix(chess$opponent_exp)
 # Create data matrix
 XandW = as.matrix(cbind(X,W))
 n=nrow(chess)
-data=as.matrix(cbind(Y,Delta,X,Z,W))
+data=as.matrix(cbind(Y,Delta,Xi,X,Z,W))
 
 
 init.value.theta_1 <- 1
 init.value.theta_2 <- 2
+
+#
+# NOTE: check code when estimating gamma: why not just use glm?
+#
+
 DataApplicationChess.multipleEV(data, init.value.theta_1, init.value.theta_2) # Takes about 1 minute to run
 
 
@@ -149,9 +168,9 @@ namescoef =  c("beta_{T,0}","beta_{T,1}","beta_{T,2}",
 
 
 # Define some useful variables
-parl <- ncol(X) + 2
+parl <- ncol(X) + 2 # The variables defined above + 1 endogenous var + 1 control function
 totparl <- 2*parl
-parlgamma <- ncol(X)+1
+parlgamma <- ncol(X)+1 # The variables defined above + 1 instrumental var
 
 
 chess$Z1 = ifelse(chess$opening_cat==2,1,0)
@@ -163,10 +182,10 @@ chess.2 <- chess[(chess$Z2==1 | (chess$Z1==0 & chess$Z2==0)),]
 # Create data matrix X of unconfounded predictors. The columns of X are:
 # [Intercept, eval_depth, poi_is_white].
 
-# NOTE: as soon as data set is fixed, we should also include ELO of white and
-#       black player.
-X.1 = as.matrix(subset(chess.1, select = c(ncol(chess)-3, 6, 7, 8)))
-X.2 = as.matrix(subset(chess.2, select = c(ncol(chess)-3, 6, 7, 8)))
+X.1 = as.matrix(subset(chess.1, select = c("intercept", "white_elo", "black_elo",
+                                           "poi_is_white")))
+X.2 = as.matrix(subset(chess.2, select = c("intercept", "white_elo", "black_elo",
+                                           "poi_is_white")))
 
 # Create data matrix of confounded variable. Z is the indicator of which opening
 # was played in the game. Z is a multi-level categorical variable. This means
@@ -174,8 +193,6 @@ X.2 = as.matrix(subset(chess.2, select = c(ncol(chess)-3, 6, 7, 8)))
 Z.1 = as.matrix(chess.1$Z1)
 Z.2 = as.matrix(chess.2$Z2)
 
-# Create data matrix of instrumental variable. W is the indicator whether the 
-# participant was in the control or treatment group (0 and 1, respectively).
 W.1 = as.matrix(chess.1$opponent_exp)
 W.2 = as.matrix(chess.2$opponent_exp)
 
@@ -185,20 +202,27 @@ Y.1 <- as.matrix(log(chess.1$time))
 Y.2 <- as.matrix(log(chess.2$time))
 Delta.1 <- as.matrix(chess.1$delta)
 Delta.2 <- as.matrix(chess.2$delta)
+Xi.1 <- as.matrix(chess.1$xi)
+Xi.2 <- as.matrix(chess.2$xi)
 
 # Create data matrix
 XandW.1 = as.matrix(cbind(X.1,W.1))
 n.1=nrow(chess.1)
-data.1=as.matrix(cbind(Y.1,Delta.1,X.1,Z.1,W.1))
+data.1=as.matrix(cbind(Y.1,Delta.1,Xi.1,X.1,Z.1,W.1))
 
 XandW.2 = as.matrix(cbind(X.2,W.2))
 n.2=nrow(chess.2)
-data.2=as.matrix(cbind(Y.2,Delta.2,X.2,Z.2,W.2))
+data.2=as.matrix(cbind(Y.2,Delta.2,Xi.2,X.2,Z.2,W.2))
 
 init.value.theta_1 <- 1
 init.value.theta_2 <- 2
-DataApplicationChess(data.1, init.value.theta_1, init.value.theta_2) # Takes about 1 minute to run
-DataApplicationChess(data.2, init.value.theta_1, init.value.theta_2) # Takes about 1 minute to run
+
+#
+# NOTE: check code when estimating gamma: why not just use glm?
+#
+
+DataApplicationChess(data.1, init.value.theta_1, init.value.theta_2)
+DataApplicationChess(data.2, init.value.theta_1, init.value.theta_2)
 
 
 

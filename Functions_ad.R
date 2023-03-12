@@ -2883,6 +2883,469 @@ SimulationCI22_SaraIlias = function(n, nsim, iseed, init.value.theta_1, init.val
 }
 
 
+#################### SimulationCI11_SaraIlias_Simplified #######################
+
+# A simplified version of the above function, only fitting the two-step 
+# estimator model and oracle model. There is also the added functionality of 
+# being able to split up the simulation in a specified amount of parts so that
+# we do not have to run this lengthy simulation in one session.
+SimulationCI11_SaraIlias_Simplified = function(n, nsim, iseed, 
+                                               init.value.theta_1,
+                                               init.value.theta_2,
+                                               part.to.evaluate,
+                                               number.of.parts) {
+  
+  # Some input validation
+  if (nsim %% number.of.parts != 0) {
+    stop("nsim needs to be a multiple of number.of.parts.")
+  }
+  if ((part.to.evaluate > number.of.parts) || (part.to.evaluate <= 0)) {
+    stop("part.to.evaluate is not valid.")
+  }
+  
+  # Create the appropriate set of i's to check
+  part.size <- nsim / number.of.parts
+  i.to.check <- 1:nsim
+  i.to.check <- i.to.check[(part.size*(part.to.evaluate-1) + 1):(part.size*part.to.evaluate)]
+  
+  sum.estV = c()
+  sum.realV = c()
+  per = 0
+  per2 = 0
+  results.estV = c()
+  results.realV = c()
+  
+  for (i in i.to.check) {
+    
+    cat((i - i.to.check[1] + 1)*100/length(i.to.check), "% Completion \n")
+    
+    data = dat.sim.reg(n,parN,iseed+i,1,1)
+    
+    Y = data[,1]
+    Delta = data[,2]
+    Xi = data[,3]
+    X = data[,(5:(parl+1))]
+    Z = data[,parl+2]
+    W = data[,parl+3]
+    XandW = cbind(data[,4],X,W)
+    
+    gammaest <- lm(Z~X+W)$coefficients
+    V <- Z-(XandW%*%gammaest)
+    
+    # Estimated V
+    M = cbind(data[,4:(2+parl)],V)
+    
+    # No V (using W instead)
+    MnoV = data[,4:(3+parl)]
+    
+    # True value for V
+    MrealV = cbind(data[,4:(2+parl)],data[,ncol(data)])
+    
+    per=per+table(Delta)[2]
+    per2=per2+table(Xi)[2]
+    
+    # Assign starting values:
+    # - beta = zero-vector
+    # - eta = zero-vector
+    # - sigma1 = 1
+    # - sigma2 = 1 
+    # - theta_1 = init.value.theta_1
+    # - theta_2 = init.value.theta_2
+    init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
+    
+    # Independent model for starting values sigma and theta.
+    #
+    # Note the difference with the version of Gilles: the likelihood function now
+    # takes an extra argument (= theta), so the vector of initial values needs
+    # to take this into account. Also the vectors for the lower -and upper bound
+    # of the parameters ('lb' and 'ub') should take this into account. Note that
+    # theta is a value between 0 and 2.
+    parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
+                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    # Model with estimated V
+    
+    # Assign starting values
+    # - beta (4 params) = First 4 params of parhat1
+    # - eta (4 params) = Next 4 params of parhat1
+    # - sigma1 = parhat1[9]
+    # - sigma2 = parhat1[10]
+    # - rho = 0
+    # - theta_1 = parhat1[11]
+    # - theta_2 = parhat1[12]
+    
+    initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
+    initd[length(initd) - 2] <- 0
+    
+    # Again we make sure to properly adapt the upper -and lower bound values of
+    # theta.
+    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
+                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    parhatG = c(parhat,as.vector(gammaest))
+    # - beta (4 params) = First 4 params of parhat
+    # - eta (4 params) = Next 4 params of parhat
+    # - sigma1 = parhat[9]
+    # - sigma2 = parhat[10]
+    # - rho = parhat[11]
+    # - theta_1 = parhat[12]
+    # - theta_2 = parhat[13]
+    # - gamma = (intercept, gamma_X, gamma_W)
+    
+    Hgamma = hessian(LikFG1,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    
+    # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta's
+    # (i.e. H_delta).
+    H = Hgamma[1:length(initd),1:length(initd)]
+    HI = ginv(H)
+    
+    Vargamma = Hgamma[1:length(initd),(length(initd)+1):(length(initd)+parlgamma)]
+    
+    prodvec = XandW[,1]
+    
+    for (i in 1:parlgamma) {
+      for (j in 2:parlgamma) {
+        if (i<=j){
+          prodvec<-cbind(prodvec,diag(XandW[,i]%*%t(XandW[,j])))
+        }
+      }
+    }
+    
+    sumsecder = c(rep(0,ncol(prodvec)))
+    
+    for (i in 1:length(sumsecder)) {
+      sumsecder[i]= -sum(prodvec[,i])
+    }
+    
+    # M-matrix: second derivative of m(W,Z,gamma)
+    WM = sumsecder[1:parlgamma]
+    for (i in 2:parlgamma) {
+      newrow<-sumsecder[c(i,(i+2):(i+parlgamma))]
+      WM<-rbind(WM,newrow) 
+    }
+    
+    # Inverse of M-matrix
+    WMI = ginv(WM)
+    
+    # First derivative of m(W,Z,gamma)
+    mi = c()
+    
+    for(i in 1:n){
+      newrow<-V[i]%*%XandW[i,]
+      mi = rbind(mi,newrow)
+    }
+    
+    mi=t(mi)
+    
+    # psi_i-matrix
+    psii = -WMI%*%mi
+    
+    # h_l(S_i, gamma, delta)
+    gi = c()
+    
+    for (i in 1:n)
+    {
+      J1 = jacobian(LikF,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
+      gi = rbind(gi,c(J1))
+    }
+    
+    gi = t(gi)
+    
+    # h_l(S, gamma, delta) + H_gamma %*% Psi_i
+    partvar = gi + Vargamma%*%psii
+    
+    Epartvar2 = (partvar%*%t(partvar))
+    
+    totvarex = HI%*%Epartvar2%*%t(HI)
+    
+    se = sqrt(abs(diag(totvarex)))
+    
+    # Delta method variance
+    
+    se_s1 = 1/parhat[totparl+1]*se[totparl+1]
+    se_s2 = 1/parhat[totparl+2]*se[totparl+2]
+    
+    # Conf. interval for transf. sigma's
+    
+    st1_l = log(parhat[totparl+1])-1.96*se_s1 ;  st1_u = log(parhat[totparl+1])+1.96*se_s1  
+    st2_l = log(parhat[totparl+2])-1.96*se_s2 ;  st2_u = log(parhat[totparl+2])+1.96*se_s2 
+    
+    # Back transform
+    
+    s1_l = exp(st1_l); s1_u = exp(st1_u); s2_l = exp(st2_l); s2_u = exp(st2_u) 
+    
+    # Confidence interval for rho
+    
+    zt = 0.5*(log((1+parhat[totparl+3])/(1-parhat[totparl+3])))     # Fisher's z transform
+    se_z = (1/(1-parhat[totparl+3]^2))*se[totparl+3]
+    zt_l = zt-1.96*(se_z)
+    zt_u = zt+1.96*(se_z)
+    
+    # Back transform
+    
+    r_l = (exp(2*zt_l)-1)/(exp(2*zt_l)+1)      
+    r_u = (exp(2*zt_u)-1)/(exp(2*zt_u)+1)
+    
+    # Confidence interval for theta
+    
+    rtheta1_l <- parhat[length(parhat)-1] - 1.96 * se[length(parhat)-1]
+    rtheta1_u <- parhat[length(parhat)-1] + 1.96 * se[length(parhat)-1]
+    rtheta2_l <- parhat[length(parhat)] - 1.96 * se[length(parhat)]
+    rtheta2_u <- parhat[length(parhat)] + 1.96 * se[length(parhat)]
+    
+    # Matrix with all confidence intervals
+    EC1 = cbind(matrix(c(parhat[1:totparl]-1.96*(se[1:totparl]),s1_l,s2_l,r_l,rtheta1_l,rtheta2_l),ncol=1),
+                matrix(c(parhat[1:totparl]+1.96*(se[1:totparl]),s1_u,s2_u,r_u,rtheta1_u, rtheta2_u), ncol=1))
+    
+    # Model with real V
+    
+    # Retake vector with initial values
+    # - beta (4 params) = First 4 params of parhat1
+    # - eta (4 params) = Next 4 params of parhat1
+    # - sigma1 = parhat1[9]
+    # - sigma2 = parhat1[10]
+    # - rho = 0
+    # - theta_1 = parhat1[11]
+    # - theta_2 = parhat1[12]
+    
+    initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
+    initd[length(initd) - 2] <- 0
+    
+    # Again we make sure to properly adapt the upper -and lower bound values of
+    # theta.
+    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
+                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    Hre = hessian(LikF,parhatre,Y=Y,Delta=Delta,Xi=Xi,M=MrealV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    HreI = ginv(Hre)
+    
+    sere = sqrt(abs(diag(HreI)))
+    
+    # Delta method variance
+    
+    sere_s1 = 1/parhatre[totparl+1]*sere[totparl+1]
+    sere_s2 = 1/parhatre[totparl+2]*sere[totparl+2]
+    
+    # Conf. interval for transf. sigma's
+    
+    st1re_l = log(parhatre[totparl+1])-1.96*sere_s1 ;  st1re_u = log(parhatre[totparl+1])+1.96*sere_s1 
+    st2re_l = log(parhatre[totparl+2])-1.96*sere_s2 ;  st2re_u = log(parhatre[totparl+2])+1.96*sere_s2 
+    
+    # Back transfrom
+    
+    s1re_l = exp(st1re_l); s1re_u = exp(st1re_u); s2re_l = exp(st2re_l); s2re_u = exp(st2re_u) 
+    
+    # Confidence interval for rho
+    
+    ztre = 0.5*(log((1+parhatre[totparl+3])/(1-parhatre[totparl+3])))     # Fisher's z transform
+    sere_z = (1/(1-parhatre[totparl+3]^2))*sere[totparl+3]
+    ztre_l = ztre-1.96*(sere_z)
+    ztre_u = ztre+1.96*(sere_z)
+    
+    # Back transform
+    
+    rre_l = (exp(2*ztre_l)-1)/(exp(2*ztre_l)+1)      
+    rre_u = (exp(2*ztre_u)-1)/(exp(2*ztre_u)+1)
+    
+    # Confidence interval for theta
+    
+    rretheta1_l <- parhatre[length(parhatre)-1] - 1.96 * sere[length(parhatre)-1]
+    rretheta1_u <- parhatre[length(parhatre)-1] + 1.96 * sere[length(parhatre)-1]
+    rretheta2_l <- parhatre[length(parhatre)] - 1.96 * sere[length(parhatre)]
+    rretheta2_u <- parhatre[length(parhatre)] + 1.96 * sere[length(parhatre)]
+    
+    EC3 = cbind(matrix(c(parhatre[1:totparl]-1.96*(sere[1:totparl]),s1re_l,s2re_l,rre_l,rretheta1_l, rretheta2_l),ncol=1),
+                matrix(c(parhatre[1:totparl]+1.96*(sere[1:totparl]),s1re_u,s2re_u,rre_u,rretheta1_u, rretheta2_u), ncol=1))
+    
+    results.estV = rbind(results.estV,c(parhat,se,c(t(EC1))))
+    results.realV = rbind(results.realV,c(parhatre,sere,c(t(EC3))))
+  }
+  
+  # For each simulation, we also record the percentage of censored and admin-
+  # istratively censored observations. Note that the global percentages can be 
+  # easily computed by taking the average over all of the separate percentages,
+  # as, by design, n*length(i.to.check) will be the same no matter the value of
+  # part.to.evaluate.
+  percentage1 <- per/(n*length(i.to.check))     #percentage of censoring
+  percentage2 <- per2/(n*length(i.to.check))
+  
+  df.estV <- data.frame(results.estV, row.names = i.to.check)
+  df.realV <- data.frame(results.realV, row.names = i.to.check)
+  df.percentage <- data.frame(per1 = percentage1, per2 = percentage2)
+  
+  write.csv(df.estV, file = paste0("Sim data/df_estV_", part.to.evaluate,
+                                   "_out_of_", number.of.parts, ".csv"),
+            row.names = FALSE)
+  
+  write.csv(df.realV, file = paste0("Sim data/df_realV_", part.to.evaluate,
+                                    "_out_of_", number.of.parts, ".csv"),
+            row.names = FALSE)
+  
+  write.csv(df.percentage, file = paste0("Sim data/df_percentage_", part.to.evaluate,
+                                         "_out_of_", number.of.parts, ".csv"),
+            row.names = FALSE)
+  
+}
+
+########################### Summarize_results ##################################
+
+# This function collects all data files from the above simulation and performs
+# the final analysis on them.
+Summarize_results = function() {
+  
+  #
+  # Create full data sets
+  #
+  
+  # Get all file names in 'Chess data' folder
+  files <- list.files("Sim data")
+  
+  # Read all files starting with "df_estV_". Store them in a list object. Do the
+  # same for files starting with "df_realV_" and "df_percentage_"
+  data_estV <- list()
+  data_realV <- list()
+  data_percentage <- list()
+  
+  for (file_name in files) {
+    if (grepl("df_estV_", file_name)) {
+      data_estV[[length(data_estV) + 1]] <- read.csv(paste0("Sim data/", file_name))
+    }
+    if (grepl("df_realV_", file_name)) {
+      data_realV[[length(data_realV) + 1]] <- read.csv(paste0("Sim data/", file_name))
+    }
+    if (grepl("df_percentage_", file_name)) {
+      data_percentage[[length(data_percentage) + 1]] <- read.csv(paste0("Sim data/", file_name))
+    }
+  }
+  
+  # Create empty data frames
+  results.estV <- data_estV[[1]]
+  results.realV <- data_realV[[1]]
+  results.percentage <- data_percentage[[1]]
+  
+  # Append all separate data frames
+  for (i in 2:length(data_estV)) {
+    results.estV <- rbind(results.estV, data_estV[[i]])
+    results.realV <- rbind(results.realV, data_realV[[i]])
+    results.percentage <- rbind(results.percentage, data_percentage[[i]])
+  }
+  
+  #
+  # Results of model with estimated V
+  #
+  
+  # Put all parameters (except gamma) into a vector
+  par0 = c(parN[[1]],parN[[2]],parN[[3]])
+  par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
+  
+  # par0:
+  # - [1:4] : beta
+  # - [5:8] : eta
+  # - [9]   : sigma1
+  # - [10]  : sigma2
+  # - [11]  : rho
+  # - [12]  : theta_1
+  # - [13]  : theta_2
+  #
+  # - totparl = 8
+  
+  # Statistics on the parameter estimates
+  Bias = apply(results.estV[,1:(totparl+5)]-par0m,2,mean)
+  ESE = apply(results.estV[,1:(totparl+5)],2,sd)
+  RMSE = sqrt(apply((results.estV[,1:(totparl+5)]-par0m)^2,2,mean))
+  
+  # Statistics on the parameter standard deviations
+  MSD  = apply(results.estV[,((totparl+5)+1):(2*(totparl+5))],2, mean)
+  
+  # Statistics on the parameter CI's: for each parameter, check how many times the
+  # true value is contained in the estimated confidence interval. We divide by
+  # nsim to obtain a percentage.
+  CP = rep(0,totparl+5)
+  datacp = results.estV[,(2*(totparl+5)+1):(4*(totparl+5))]
+  for(i in 1:(totparl+5)) {
+    index=c(2*i-1,2*i)
+    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
+  } 
+  
+  summary = cbind(Bias,ESE,MSD,RMSE,CP) 
+  
+  #
+  # Model with real V
+  #
+  
+  par0 = c(parN[[1]],parN[[2]],parN[[3]])
+  par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
+  # par0:
+  # - [1:4] : beta
+  # - [5:8] : eta
+  # - [9]   : sigma1
+  # - [10]  : sigma2
+  # - [11]  : rho
+  # - [12]  : theta_1
+  # - [13]  : theta_2
+  #
+  # - totparl = 8
+  
+  # Statistics on the parameter estimates
+  Bias = apply(results.realV[,1:(totparl+5)]-par0m,2,mean)
+  ESE = apply(results.realV[,1:(totparl+5)],2,sd)
+  RMSE = sqrt(apply((results.realV[,1:(totparl+5)]-par0m)^2,2,mean))
+  
+  # Statistics on the standard deviation estimates
+  MSD  = apply(results.realV[,((totparl+5)+1):(2*(totparl+5))],2, mean)
+  
+  # Statistics on the parameter CI's: for each parameter, check how many times the
+  # true value is contained in the estimated confidence interval. We divide by
+  # nsim to obtain a percentage.
+  CP = rep(0,totparl+5)
+  datacp = results.realV[,(2*(totparl+5)+1):(4*(totparl+5))]
+  for(i in 1:(totparl+5)) {
+    index=c(2*i-1,2*i)
+    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
+  } 
+  
+  summary2 = cbind(Bias,ESE,MSD,RMSE,CP) 
+  
+  sum = summary
+  sum2 = summary2
+  
+  ## Results of model with estimated V
+  
+  colnames(sum) = c("Bias","ESD","ASE","RMSE","CR")
+  rownames(sum) = namescoef
+  
+  # Make nice Latex table
+  xtab = xtable(sum)
+  
+  # set to 3 significant digits
+  digits(xtab) = rep(3,6)
+  
+  header= c("sample size",n)
+  addtorow = list()
+  addtorow$pos = list(-1)
+  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+  
+  # Save table code in .txt-file. Also add header row.
+  print.xtable(xtab,file=paste0("YJ_estV11_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+  print(xtab, add.to.row=addtorow, include.colnames=TRUE)
+  
+  ## Results of model with real V
+  
+  colnames(sum2) = c("Bias","ESD","ASE","RMSE","CR")
+  rownames(sum2) = namescoef
+  xtab2 = xtable(sum2)
+  digits(xtab2) = rep(3,6)
+  header= c("sample size",n)
+  addtorow = list()
+  addtorow$pos = list(-1)
+  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+  
+  print.xtable(xtab2,file=paste0("YJ_realV11_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+  print(xtab2, add.to.row=addtorow, include.colnames=TRUE)
+}
+
+########################### Data application JTPA ##############################
+
 DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   
   n = nrow(data)
@@ -3345,490 +3808,43 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
          col = c(1, 2), lty = 1)
 }
 
-
-
-# A simplified version of the above function, only fitting the two-step 
-# estimator model and oracle model. There is also the added functionality of 
-# being able to split up the simulation in a specified amount of parts so that
-# we do not have to run this lengthy simulation in one session.
-SimulationCI11_SaraIlias_Simplified = function(n, nsim, iseed, 
-                                               init.value.theta_1,
-                                               init.value.theta_2,
-                                               part.to.evaluate,
-                                               number.of.parts) {
-  
-  # Some input validation
-  if (nsim %% number.of.parts != 0) {
-    stop("nsim needs to be a multiple of number.of.parts.")
-  }
-  if ((part.to.evaluate > number.of.parts) || (part.to.evaluate <= 0)) {
-    stop("part.to.evaluate is not valid.")
-  }
-  
-  # Create the appropriate set of i's to check
-  part.size <- nsim / number.of.parts
-  i.to.check <- 1:nsim
-  i.to.check <- i.to.check[(part.size*(part.to.evaluate-1) + 1):(part.size*part.to.evaluate)]
-  
-  sum.estV = c()
-  sum.realV = c()
-  per = 0
-  per2 = 0
-  results.estV = c()
-  results.realV = c()
-  
-  for (i in i.to.check) {
-    
-    cat((i - i.to.check[1] + 1)*100/length(i.to.check), "% Completion \n")
-    
-    data = dat.sim.reg(n,parN,iseed+i,1,1)
-    
-    Y = data[,1]
-    Delta = data[,2]
-    Xi = data[,3]
-    X = data[,(5:(parl+1))]
-    Z = data[,parl+2]
-    W = data[,parl+3]
-    XandW = cbind(data[,4],X,W)
-    
-    gammaest <- lm(Z~X+W)$coefficients
-    V <- Z-(XandW%*%gammaest)
-    
-    # Estimated V
-    M = cbind(data[,4:(2+parl)],V)
-    
-    # No V (using W instead)
-    MnoV = data[,4:(3+parl)]
-    
-    # True value for V
-    MrealV = cbind(data[,4:(2+parl)],data[,ncol(data)])
-    
-    per=per+table(Delta)[2]
-    per2=per2+table(Xi)[2]
-    
-    # Assign starting values:
-    # - beta = zero-vector
-    # - eta = zero-vector
-    # - sigma1 = 1
-    # - sigma2 = 1 
-    # - theta_1 = init.value.theta_1
-    # - theta_2 = init.value.theta_2
-    init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
-    
-    # Independent model for starting values sigma and theta.
-    #
-    # Note the difference with the version of Gilles: the likelihood function now
-    # takes an extra argument (= theta), so the vector of initial values needs
-    # to take this into account. Also the vectors for the lower -and upper bound
-    # of the parameters ('lb' and 'ub') should take this into account. Note that
-    # theta is a value between 0 and 2.
-    parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
-                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-    
-    # Model with estimated V
-    
-    # Assign starting values
-    # - beta (4 params) = First 4 params of parhat1
-    # - eta (4 params) = Next 4 params of parhat1
-    # - sigma1 = parhat1[9]
-    # - sigma2 = parhat1[10]
-    # - rho = 0
-    # - theta_1 = parhat1[11]
-    # - theta_2 = parhat1[12]
-    
-    initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
-    initd[length(initd) - 2] <- 0
-    
-    # Again we make sure to properly adapt the upper -and lower bound values of
-    # theta.
-    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
-                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-    
-    parhatG = c(parhat,as.vector(gammaest))
-    # - beta (4 params) = First 4 params of parhat
-    # - eta (4 params) = Next 4 params of parhat
-    # - sigma1 = parhat[9]
-    # - sigma2 = parhat[10]
-    # - rho = parhat[11]
-    # - theta_1 = parhat[12]
-    # - theta_2 = parhat[13]
-    # - gamma = (intercept, gamma_X, gamma_W)
-    
-    Hgamma = hessian(LikFG1,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
-    
-    # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta's
-    # (i.e. H_delta).
-    H = Hgamma[1:length(initd),1:length(initd)]
-    HI = ginv(H)
-    
-    Vargamma = Hgamma[1:length(initd),(length(initd)+1):(length(initd)+parlgamma)]
-    
-    prodvec = XandW[,1]
-    
-    for (i in 1:parlgamma) {
-      for (j in 2:parlgamma) {
-        if (i<=j){
-          prodvec<-cbind(prodvec,diag(XandW[,i]%*%t(XandW[,j])))
-        }
-      }
-    }
-    
-    sumsecder = c(rep(0,ncol(prodvec)))
-    
-    for (i in 1:length(sumsecder)) {
-      sumsecder[i]= -sum(prodvec[,i])
-    }
-    
-    # M-matrix: second derivative of m(W,Z,gamma)
-    WM = sumsecder[1:parlgamma]
-    for (i in 2:parlgamma) {
-      newrow<-sumsecder[c(i,(i+2):(i+parlgamma))]
-      WM<-rbind(WM,newrow) 
-    }
-    
-    # Inverse of M-matrix
-    WMI = ginv(WM)
-    
-    # First derivative of m(W,Z,gamma)
-    mi = c()
-    
-    for(i in 1:n){
-      newrow<-V[i]%*%XandW[i,]
-      mi = rbind(mi,newrow)
-    }
-    
-    mi=t(mi)
-    
-    # psi_i-matrix
-    psii = -WMI%*%mi
-    
-    # h_l(S_i, gamma, delta)
-    gi = c()
-    
-    for (i in 1:n)
-    {
-      J1 = jacobian(LikF,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
-      gi = rbind(gi,c(J1))
-    }
-    
-    gi = t(gi)
-    
-    # h_l(S, gamma, delta) + H_gamma %*% Psi_i
-    partvar = gi + Vargamma%*%psii
-    
-    Epartvar2 = (partvar%*%t(partvar))
-    
-    totvarex = HI%*%Epartvar2%*%t(HI)
-    
-    se = sqrt(abs(diag(totvarex)))
-    
-    # Delta method variance
-    
-    se_s1 = 1/parhat[totparl+1]*se[totparl+1]
-    se_s2 = 1/parhat[totparl+2]*se[totparl+2]
-    
-    # Conf. interval for transf. sigma's
-    
-    st1_l = log(parhat[totparl+1])-1.96*se_s1 ;  st1_u = log(parhat[totparl+1])+1.96*se_s1  
-    st2_l = log(parhat[totparl+2])-1.96*se_s2 ;  st2_u = log(parhat[totparl+2])+1.96*se_s2 
-    
-    # Back transform
-    
-    s1_l = exp(st1_l); s1_u = exp(st1_u); s2_l = exp(st2_l); s2_u = exp(st2_u) 
-    
-    # Confidence interval for rho
-    
-    zt = 0.5*(log((1+parhat[totparl+3])/(1-parhat[totparl+3])))     # Fisher's z transform
-    se_z = (1/(1-parhat[totparl+3]^2))*se[totparl+3]
-    zt_l = zt-1.96*(se_z)
-    zt_u = zt+1.96*(se_z)
-    
-    # Back transform
-    
-    r_l = (exp(2*zt_l)-1)/(exp(2*zt_l)+1)      
-    r_u = (exp(2*zt_u)-1)/(exp(2*zt_u)+1)
-    
-    # Confidence interval for theta
-    
-    rtheta1_l <- parhat[length(parhat)-1] - 1.96 * se[length(parhat)-1]
-    rtheta1_u <- parhat[length(parhat)-1] + 1.96 * se[length(parhat)-1]
-    rtheta2_l <- parhat[length(parhat)] - 1.96 * se[length(parhat)]
-    rtheta2_u <- parhat[length(parhat)] + 1.96 * se[length(parhat)]
-    
-    # Matrix with all confidence intervals
-    EC1 = cbind(matrix(c(parhat[1:totparl]-1.96*(se[1:totparl]),s1_l,s2_l,r_l,rtheta1_l,rtheta2_l),ncol=1),
-                matrix(c(parhat[1:totparl]+1.96*(se[1:totparl]),s1_u,s2_u,r_u,rtheta1_u, rtheta2_u), ncol=1))
-    
-    # Model with real V
-    
-    # Retake vector with initial values
-    # - beta (4 params) = First 4 params of parhat1
-    # - eta (4 params) = Next 4 params of parhat1
-    # - sigma1 = parhat1[9]
-    # - sigma2 = parhat1[10]
-    # - rho = 0
-    # - theta_1 = parhat1[11]
-    # - theta_2 = parhat1[12]
-    
-    initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
-    initd[length(initd) - 2] <- 0
-    
-    # Again we make sure to properly adapt the upper -and lower bound values of
-    # theta.
-    parhatre = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=MrealV,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
-                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-    
-    Hre = hessian(LikF,parhatre,Y=Y,Delta=Delta,Xi=Xi,M=MrealV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
-    HreI = ginv(Hre)
-    
-    sere = sqrt(abs(diag(HreI)))
-    
-    # Delta method variance
-    
-    sere_s1 = 1/parhatre[totparl+1]*sere[totparl+1]
-    sere_s2 = 1/parhatre[totparl+2]*sere[totparl+2]
-    
-    # Conf. interval for transf. sigma's
-    
-    st1re_l = log(parhatre[totparl+1])-1.96*sere_s1 ;  st1re_u = log(parhatre[totparl+1])+1.96*sere_s1 
-    st2re_l = log(parhatre[totparl+2])-1.96*sere_s2 ;  st2re_u = log(parhatre[totparl+2])+1.96*sere_s2 
-    
-    # Back transfrom
-    
-    s1re_l = exp(st1re_l); s1re_u = exp(st1re_u); s2re_l = exp(st2re_l); s2re_u = exp(st2re_u) 
-    
-    # Confidence interval for rho
-    
-    ztre = 0.5*(log((1+parhatre[totparl+3])/(1-parhatre[totparl+3])))     # Fisher's z transform
-    sere_z = (1/(1-parhatre[totparl+3]^2))*sere[totparl+3]
-    ztre_l = ztre-1.96*(sere_z)
-    ztre_u = ztre+1.96*(sere_z)
-    
-    # Back transform
-    
-    rre_l = (exp(2*ztre_l)-1)/(exp(2*ztre_l)+1)      
-    rre_u = (exp(2*ztre_u)-1)/(exp(2*ztre_u)+1)
-    
-    # Confidence interval for theta
-    
-    rretheta1_l <- parhatre[length(parhatre)-1] - 1.96 * sere[length(parhatre)-1]
-    rretheta1_u <- parhatre[length(parhatre)-1] + 1.96 * sere[length(parhatre)-1]
-    rretheta2_l <- parhatre[length(parhatre)] - 1.96 * sere[length(parhatre)]
-    rretheta2_u <- parhatre[length(parhatre)] + 1.96 * sere[length(parhatre)]
-    
-    EC3 = cbind(matrix(c(parhatre[1:totparl]-1.96*(sere[1:totparl]),s1re_l,s2re_l,rre_l,rretheta1_l, rretheta2_l),ncol=1),
-                matrix(c(parhatre[1:totparl]+1.96*(sere[1:totparl]),s1re_u,s2re_u,rre_u,rretheta1_u, rretheta2_u), ncol=1))
-    
-    results.estV = rbind(results.estV,c(parhat,se,c(t(EC1))))
-    results.realV = rbind(results.realV,c(parhatre,sere,c(t(EC3))))
-  }
-  
-  # For each simulation, we also record the percentage of censored and admin-
-  # istratively censored observations. Note that the global percentages can be 
-  # easily computed by taking the average over all of the separate percentages,
-  # as, by design, n*length(i.to.check) will be the same no matter the value of
-  # part.to.evaluate.
-  percentage1 <- per/(n*length(i.to.check))     #percentage of censoring
-  percentage2 <- per2/(n*length(i.to.check))
-  
-  df.estV <- data.frame(results.estV, row.names = i.to.check)
-  df.realV <- data.frame(results.realV, row.names = i.to.check)
-  df.percentage <- data.frame(per1 = percentage1, per2 = percentage2)
-  
-  write.csv(df.estV, file = paste0("Sim data/df_estV_", part.to.evaluate,
-                                   "_out_of_", number.of.parts, ".csv"),
-            row.names = FALSE)
-  
-  write.csv(df.realV, file = paste0("Sim data/df_realV_", part.to.evaluate,
-                                    "_out_of_", number.of.parts, ".csv"),
-            row.names = FALSE)
-  
-  write.csv(df.percentage, file = paste0("Sim data/df_percentage_", part.to.evaluate,
-                                         "_out_of_", number.of.parts, ".csv"),
-            row.names = FALSE)
-  
-}
-
-
-# This function collects all data files from the above simulation and performs
-# the final analysis on them.
-Summarize_results = function() {
-  
-  #
-  # Create full data sets
-  #
-  
-  # Get all file names in 'Chess data' folder
-  files <- list.files("Sim data")
-  
-  # Read all files starting with "df_estV_". Store them in a list object. Do the
-  # same for files starting with "df_realV_" and "df_percentage_"
-  data_estV <- list()
-  data_realV <- list()
-  data_percentage <- list()
-  
-  for (file_name in files) {
-    if (grepl("df_estV_", file_name)) {
-      data_estV[[length(data_estV) + 1]] <- read.csv(paste0("Sim data/", file_name))
-    }
-    if (grepl("df_realV_", file_name)) {
-      data_realV[[length(data_realV) + 1]] <- read.csv(paste0("Sim data/", file_name))
-    }
-    if (grepl("df_percentage_", file_name)) {
-      data_percentage[[length(data_percentage) + 1]] <- read.csv(paste0("Sim data/", file_name))
-    }
-  }
-  
-  # Create empty data frames
-  results.estV <- data_estV[[1]]
-  results.realV <- data_realV[[1]]
-  results.percentage <- data_percentage[[1]]
-  
-  # Append all separate data frames
-  for (i in 2:length(data_estV)) {
-    results.estV <- rbind(results.estV, data_estV[[i]])
-    results.realV <- rbind(results.realV, data_realV[[i]])
-    results.percentage <- rbind(results.percentage, data_percentage[[i]])
-  }
-  
-  #
-  # Results of model with estimated V
-  #
-  
-  # Put all parameters (except gamma) into a vector
-  par0 = c(parN[[1]],parN[[2]],parN[[3]])
-  par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
-  
-  # par0:
-  # - [1:4] : beta
-  # - [5:8] : eta
-  # - [9]   : sigma1
-  # - [10]  : sigma2
-  # - [11]  : rho
-  # - [12]  : theta_1
-  # - [13]  : theta_2
-  #
-  # - totparl = 8
-  
-  # Statistics on the parameter estimates
-  Bias = apply(results.estV[,1:(totparl+5)]-par0m,2,mean)
-  ESE = apply(results.estV[,1:(totparl+5)],2,sd)
-  RMSE = sqrt(apply((results.estV[,1:(totparl+5)]-par0m)^2,2,mean))
-  
-  # Statistics on the parameter standard deviations
-  MSD  = apply(results.estV[,((totparl+5)+1):(2*(totparl+5))],2, mean)
-  
-  # Statistics on the parameter CI's: for each parameter, check how many times the
-  # true value is contained in the estimated confidence interval. We divide by
-  # nsim to obtain a percentage.
-  CP = rep(0,totparl+5)
-  datacp = results.estV[,(2*(totparl+5)+1):(4*(totparl+5))]
-  for(i in 1:(totparl+5)) {
-    index=c(2*i-1,2*i)
-    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
-  } 
-  
-  summary = cbind(Bias,ESE,MSD,RMSE,CP) 
-  
-  #
-  # Model with real V
-  #
-  
-  par0 = c(parN[[1]],parN[[2]],parN[[3]])
-  par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
-  # par0:
-  # - [1:4] : beta
-  # - [5:8] : eta
-  # - [9]   : sigma1
-  # - [10]  : sigma2
-  # - [11]  : rho
-  # - [12]  : theta_1
-  # - [13]  : theta_2
-  #
-  # - totparl = 8
-  
-  # Statistics on the parameter estimates
-  Bias = apply(results.realV[,1:(totparl+5)]-par0m,2,mean)
-  ESE = apply(results.realV[,1:(totparl+5)],2,sd)
-  RMSE = sqrt(apply((results.realV[,1:(totparl+5)]-par0m)^2,2,mean))
-  
-  # Statistics on the standard deviation estimates
-  MSD  = apply(results.realV[,((totparl+5)+1):(2*(totparl+5))],2, mean)
-  
-  # Statistics on the parameter CI's: for each parameter, check how many times the
-  # true value is contained in the estimated confidence interval. We divide by
-  # nsim to obtain a percentage.
-  CP = rep(0,totparl+5)
-  datacp = results.realV[,(2*(totparl+5)+1):(4*(totparl+5))]
-  for(i in 1:(totparl+5)) {
-    index=c(2*i-1,2*i)
-    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
-  } 
-  
-  summary2 = cbind(Bias,ESE,MSD,RMSE,CP) 
-  
-  sum = summary
-  sum2 = summary2
-  
-  ## Results of model with estimated V
-  
-  colnames(sum) = c("Bias","ESD","ASE","RMSE","CR")
-  rownames(sum) = namescoef
-  
-  # Make nice Latex table
-  xtab = xtable(sum)
-  
-  # set to 3 significant digits
-  digits(xtab) = rep(3,6)
-  
-  header= c("sample size",n)
-  addtorow = list()
-  addtorow$pos = list(-1)
-  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  
-  # Save table code in .txt-file. Also add header row.
-  print.xtable(xtab,file=paste0("YJ_estV11_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
-  print(xtab, add.to.row=addtorow, include.colnames=TRUE)
-  
-  ## Results of model with real V
-  
-  colnames(sum2) = c("Bias","ESD","ASE","RMSE","CR")
-  rownames(sum2) = namescoef
-  xtab2 = xtable(sum2)
-  digits(xtab2) = rep(3,6)
-  header= c("sample size",n)
-  addtorow = list()
-  addtorow$pos = list(-1)
-  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  
-  print.xtable(xtab2,file=paste0("YJ_realV11_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
-  print(xtab2, add.to.row=addtorow, include.colnames=TRUE)
-}
-
+########################## Data application chess ##############################
 
 DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   
   
   n = nrow(data)
   Y = data[,1]
-  Delta = ifelse(data[,2]==1,1,0)
-  Xi = ifelse(data[,2]==0,1,0)
-  X = data[,(4:parl)]
-  Z = data[,parl+1]
-  W = data[,parl+2]
-  XandW = cbind(data[,3],X,W)
+  Delta = data[,2]
+  Xi = data[,3]
+  intercept = data[,4]
+  X = data[,5:(parl + 1)]
+  Z = data[,parl+2]
+  W = data[,parl+3]
+  XandW = cbind(intercept,X,W)
 
   
   # Estimate V
   gammaest <- nloptr(x0=rep(0,parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma)),ub=c(rep(Inf,parlgamma)),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+  
+  ##############################################################################
+  # This works better
+  gammaest2 <- summary(glm(as.factor(Z) ~ -1 + XandW, family = "binomial"))$coefficients
+  
+  LikGamma2(gammaest, Z, XandW)
+  LikGamma2(gammaest2[,1], Z, XandW)
+  
+  gammaest <- gammaest2[,1]
+  ##############################################################################
+  
   V <- (1-Z)*((1+exp(XandW%*%gammaest))*log(1+exp(XandW%*%gammaest))-(XandW%*%gammaest)*exp(XandW%*%gammaest))-Z*((1+exp(-(XandW%*%gammaest)))*log(1+exp(-(XandW%*%gammaest)))+(XandW%*%gammaest)*exp(-(XandW%*%gammaest)))
   
   # Create matrix of X, Z and V.
-  M <- cbind(data[,3:(1+parl)],V)
+  M <- cbind(data[,4:(2+parl)],V)
   
   # Create matrix of X, Z and W.
-  MnoV = data[,3:(2+parl)]
+  MnoV = data[,4:(3+parl)]
   
   init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
   
@@ -4110,7 +4126,7 @@ DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   colnames(results.confound_dep) <- c("Estimate", "St.Dev.", "p", "CI.lb", "CI.ub")
   rownames(results.confound_dep) <- namescoef
   
-  summary <- data.frame(round(results.confound_dep, 3))
+  summary <- data.frame(round(results.confound_dep, 4))
   summary$sign <- significant
   summary <- summary[,c(1:3, 6, 4:5)]
   summary
@@ -4124,7 +4140,7 @@ DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   colnames(results.naive) <- c("Estimate", "St.Dev.", "pvalue", "CI.lb", "CI.ub")
   rownames(results.naive) <- namescoef[-c(parl, totparl)]
   
-  summary1 <- data.frame(round(results.naive, 3))
+  summary1 <- data.frame(round(results.naive, 4))
   summary1$sign <- significant.naive
   summary1 <- summary1[,c(1:3, 6, 4:5)]
   summary1
@@ -4138,13 +4154,13 @@ DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   colnames(results.indep) <- c("Estimate", "St.Dev.", "pvalue", "CI.lb", "CI.ub")
   rownames(results.indep) <- namescoef[-(length(namescoef) - 2)]
   
-  summary2 <- data.frame(round(results.indep, 3))
+  summary2 <- data.frame(round(results.indep, 4))
   summary2$sign <- significant.indep
   summary2 <- summary2[,c(1:3, 6, 4:5)]
   summary2
   
   ## Create LaTeX tables of results
-  xtab = xtable(summary)
+  xtab = xtable(summary, digits = 3)
   header= c("sample size",n,"Results 2-step_Estimation with YT-transformation")
   addtorow = list()
   addtorow$pos = list(-1)
@@ -4154,7 +4170,7 @@ DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   # print.xtable(xtab,file=paste0("Results_2-step_Estimation_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
   
-  xtab = xtable(summary1)
+  xtab = xtable(summary1, digits = 3)
   header= c("sample size",n,"Results naive model with YT-transformation")
   addtorow = list()
   addtorow$pos = list(-1)
@@ -4164,7 +4180,7 @@ DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   # print.xtable(xtab,file=paste0("Results_naive_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
   
-  xtab = xtable(summary2)
+  xtab = xtable(summary2, digits = 3)
   header= c("sample size",n,"Results independence model with YT-transformation")
   addtorow = list()
   addtorow$pos = list(-1)

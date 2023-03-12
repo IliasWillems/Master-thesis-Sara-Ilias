@@ -1004,17 +1004,28 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   
   n = nrow(data)
   Y = data[,1]
-  Delta = ifelse(data[,2]==1,1,0)
-  Xi = ifelse(data[,2]==0,1,0)
-  X = data[,(4:(parl-2))]
-  Z1 = ifelse(data[,parl-1]==2,1,0)
-  Z2 = ifelse(data[,parl-1]==3,1,0)
+  Delta = data[,2]
+  Xi = data[,3]
+  intercept <- data[,4]
+  X = data[,(5:(parl-1))]
+  Z1 = ifelse(data[,parl]==2,1,0) # Z = 1 is the reference level.
+  Z2 = ifelse(data[,parl]==3,1,0)
   Z = cbind(Z1,Z2)
-  W = data[,parl]
-  XandW = cbind(data[,3],X,W)
+  W = data[,parl + 1]
+  XandW = cbind(intercept,X,W)
   
-  gammaest <- nloptr(x0=rep(0,2*parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma*2)),ub=c(rep(Inf,parlgamma*2)),
-                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+  # gammaest <- nloptr(x0=rep(0,2*parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma*2)),ub=c(rep(Inf,parlgamma*2)),
+  #                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+  
+  ##############################################################################
+  # Maybe better to estimate with a known function since the above does not seem
+  # to work very well.
+  
+  end_var_class <- relevel(as.factor(data[,parl]), ref = 1)
+  gammaest <- summary(multinom(end_var_class ~ -1 + XandW, ref = 1, trace = FALSE))$coefficients
+  gammaest <- c(gammaest[1,], gammaest[2,])
+  
+  ##############################################################################
   
   gamma1 <- gammaest[1:parlgamma]  
   gamma2 <- gammaest[(parlgamma+1):(2*parlgamma)]
@@ -1037,10 +1048,10 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
     
     
   # Estimated V
-  M = cbind(data[,3],X,Z,V1,V2)
+  M = cbind(intercept,X,Z,V1,V2)
     
   # No V (using W instead)
-  MnoV = cbind(data[,3],X,Z,W)
+  MnoV = cbind(intercept,X,Z,W)
     
     
   # Assign starting values:
@@ -1298,7 +1309,7 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   colnames(results.confound_dep) <- c("Estimate", "St.Dev.", "p", "CI.lb", "CI.ub")
   rownames(results.confound_dep) <- namescoef
   
-  summary <- data.frame(round(results.confound_dep, 3))
+  summary <- data.frame(round(results.confound_dep, 4))
   summary$sign <- significant
   summary <- summary[,c(1:3, 6, 4:5)]
   summary
@@ -1318,7 +1329,7 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   
   rownames(results.naive) <- namescoefr
   
-  summary1 <- data.frame(round(results.naive, 3))
+  summary1 <- data.frame(round(results.naive, 4))
   summary1$sign <- significant.naive
   summary1 <- summary1[,c(1:3, 6, 4:5)]
   summary1
@@ -1332,13 +1343,13 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   colnames(results.indep) <- c("Estimate", "St.Dev.", "pvalue", "CI.lb", "CI.ub")
   rownames(results.indep) <- namescoef[-(length(namescoef) - 2)]
   
-  summary2 <- data.frame(round(results.indep, 3))
+  summary2 <- data.frame(round(results.indep, 4))
   summary2$sign <- significant.indep
   summary2 <- summary2[,c(1:3, 6, 4:5)]
   summary2
   
   ## Create LaTeX tables of results
-  xtab = xtable(summary)
+  xtab = xtable(summary, digits = 3)
   header= c("sample size",n,"Results 2-step_Estimation with YT-transformation multiple EV")
   addtorow = list()
   addtorow$pos = list(-1)
@@ -1348,7 +1359,7 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   # print.xtable(xtab,file=paste0("Results_2-step_Estimation_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
   
-  xtab = xtable(summary1)
+  xtab = xtable(summary1, digits = 3)
   header= c("sample size",n,"Results naive model with YT-transformation multiple EV")
   addtorow = list()
   addtorow$pos = list(-1)
@@ -1358,7 +1369,7 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   # print.xtable(xtab,file=paste0("Results_naive_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
   
-  xtab = xtable(summary2)
+  xtab = xtable(summary2, digits = 3)
   header= c("sample size",n,"Results independence model with YT-transformation multiple EV")
   addtorow = list()
   addtorow$pos = list(-1)

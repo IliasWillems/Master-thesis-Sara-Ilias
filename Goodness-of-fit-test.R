@@ -15,6 +15,8 @@ library(LaplacesDemon)
 library(survival)
 library(foreach)
 library(doParallel)
+library(expint)
+
 source("Functions_ad.R")
 source("Goodness-of-fit-test_functions.R")
 source("Misspecification_functions.R")
@@ -137,20 +139,13 @@ typeIerror_results_noboot[["reject95"]]
   # reject95 = 0
 
 ################################################################################
-#                   GOF test for misspecified models                           #
-#                                                                              #
-# Add this part to Section 4.2: Model under misspecification later and merge   #
-# the code with Misspecification_functions.R                                   #
+#      GOF test for misspecified models: misspecified error distribution       #
 ################################################################################
+
+
 
 # Copied from 'Misspecification_main.R'... >>>..................................
 
-################################################################################
-#                              Set some parameters                             # 
-################################################################################
-
-n <- 1000
-nsim <- 100
 beta <- c(2.5, 2.6, 1.8, 2)
 eta <- c(1.8,0.9,0.5,-2.2)
 gamma <- c(-1, 0.6, 2.3)
@@ -166,10 +161,6 @@ namescoef =  c("$\\beta_{T,0}$","$\\beta_{T,1}$","$\\alpha_T$","$\\lambda_T$",
                "$\\sigma_T$","$\\sigma_C$","$\\rho$","$\\theta_1$","$\\theta_2$")
 
 # ...
-
-################################################################################
-#                       Misspecified error distributions                       # 
-################################################################################
 
 # 
 # Skew-normal errors
@@ -192,7 +183,9 @@ par.t <- list(beta, eta, par.df, gamma)
 
 par.heteroscedastic <- list(beta, eta, sd, gamma)
 
-# <<<...........................................................................
+# ........................<<<<<< Last line copied from 'Misspecification_main.R'
+
+
 
 iseed <- 768266
 type <- "heteroscedastic"
@@ -230,6 +223,64 @@ for (part in 3:5) {
   write.csv(c(reject90, reject95), file = paste0(folder, filename))
   
 }
+
+
+################################################################################
+#       GOF test for misspecified models: misspecified control function        #
+################################################################################
+
+source("Goodness-of-fit-test_functions.R")
+
+beta <- c(2.5, 2.6, 1.8, 2)
+eta <- c(1.8,0.9,0.5,-2.2)
+gamma <- c(-1, 0.6, 2.3)
+sd <- c(1.1,1.4,0.75,1, 0.5)
+
+parl <- length(beta)
+totparl <- 2*parl
+parlgamma <- (parl-1)
+
+namescoef =  c("$\\beta_{T,0}$","$\\beta_{T,1}$","$\\alpha_T$","$\\lambda_T$",
+               "$\\beta_{C,0}$","$\\beta_{C,1}$","$\\alpha_C$","$\\lambda_C$",
+               "$\\sigma_T$","$\\sigma_C$","$\\rho$","$\\theta_1$","$\\theta_2$")
+
+iseed <- 768266
+control_function <- "cloglog"
+nruns <- 10
+Zbin <- 2
+Wbin <- 1
+B <- 250
+n <- 1000
+
+
+for (part in 1:1) {
+  message("Running part ", part, " out of 5.")
+  message("")
+  
+  if ((control_function == "probit") | (control_function == "cloglog")) {
+    par.vector <- list(beta, eta, sd, gamma)
+  } else {
+    stop("invalid control function specified")
+  }
+  misspec_results <- 
+    GOF_SimulationMisspecification(control_function, par.vector, nruns, B, iseed + (part - 1)*100, 
+                                   Zbin, Wbin, parallel = TRUE)
+  reject90 <- misspec_results[["reject90"]]
+  reject95 <- misspec_results[["reject95"]]
+  
+  filename <- paste0("misspec_", control_function, "_iseed", iseed + (part - 1)*100, "_",
+                     nruns, "runs_B", B, ".csv")
+  
+  # put in proper folder
+  folder <- paste0("Power/Misspec_", control_function, "_B", B, "_n", n, "/")
+  
+  write.csv(c(reject90, reject95), file = paste0(folder, filename))
+  
+}
+
+
+
+
 
 
 

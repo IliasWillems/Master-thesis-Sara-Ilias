@@ -342,9 +342,11 @@ GOF_test_parallel <- function(data, B, iseed, Zbin, Wbin, display.plot) {
 
     source("Functions_ad.R")
     source("Goodness-of-fit-test_functions.R")
-      
+    
+    MAX_SEED_SIZE <- 2147483647
+    
     # Create bootstrap data sample
-    bootstrapseed <- B*iseed + b
+    bootstrapseed <- (B*iseed + b) %% MAX_SEED_SIZE
     set.seed(bootstrapseed)
     
     beta <- parhat[1:parl]
@@ -438,8 +440,9 @@ GOF_test_parallel <- function(data, B, iseed, Zbin, Wbin, display.plot) {
 }
 
 
-# This function uses the first approach considered to obtain the Cramer -
+# These functions use the first approach considered to obtain the Cramer -
 # von Mises statistic. This approach will model F_Y instead of F_K.
+# --> It was shown that they do not work and therefore shouldn't be used
 GOF_test_newapproach <- function(data, B, iseed, Zbin, Wbin, display.plot) {
   
   if ((Zbin != 1 && Zbin != 2) && (Wbin != 1 && Wbin !=2) ) {
@@ -619,8 +622,6 @@ GOF_test_newapproach <- function(data, B, iseed, Zbin, Wbin, display.plot) {
   list(TCM = TCM, TCMb_vector = TCMb_vector, signif90 = significant1,
        signif95 = significant2)
 }
-
-
 GOF_test_newapproach_parallel <- function(data, B, iseed, Zbin, Wbin, display.plot) {
   
   if ((Zbin != 1 && Zbin != 2) && (Wbin != 1 && Wbin !=2) ) {
@@ -813,8 +814,8 @@ GOF_test_newapproach_parallel <- function(data, B, iseed, Zbin, Wbin, display.pl
 # from its estimated distribution, we sample from its true distribution.
 GOF_test_oracle <- function(data, B, iseed, Zbin, Wbin, display.plot) {
   
-  if (!(Zbin == 1 & Wbin == 1)) {
-    stop("Not implemented yet")
+  if ((Zbin != 1 && Zbin != 2) && (Wbin != 1 && Wbin !=2) ) {
+    stop("Invalid input")
   }
   
   # Estimate the parameter vectors gamma and delta
@@ -1308,27 +1309,72 @@ GOF_SimulationMisspecification <- function(type, par, nruns, B, iseed, Zbin, Wbi
       if (type == "skew") {
         data.skew <- data.misspecified.skew(n, par, iseed + run, Zbin, Wbin)[[1]]
         out <- GOF_test_parallel(data.skew, B, iseed, Zbin, Wbin, display.plot = FALSE)
+        
       } else if (type == "t") {
         data.t <- data.misspecified.t(n, par, iseed + run, Zbin, Wbin)
         out <- GOF_test_parallel(data.t, B, iseed, Zbin, Wbin, display.plot = FALSE)
+        
       } else if (type == "heteroscedastic") {
         data.heteroscedastic <- data.misspecified.heteroscedastic(n, par, iseed + run, Zbin, Wbin)
         out <- GOF_test_parallel(data.heteroscedastic, B, iseed, Zbin, Wbin, display.plot = FALSE)
+        
+      } else if (type == 'probit') {
+        if (Zbin == 1) {
+          warning(paste0("Argument Zbin = 1 invalid as probit control function requires ", 
+                  "binary endogenous variable. Using Zbin = 2 instead."))
+          Zbin <- 2
+        }
+        data.probit <- data.misspecified.probit(n, par, iseed + run, Wbin)
+        out <- GOF_test_parallel(data.probit, B, iseed, Zbin, Wbin, display.plot = FALSE)
+        
+      } else if (type == 'cloglog') {
+        if (Zbin == 1) {
+          warning(paste0("Argument Zbin = 1 invalid as cloglog control function requires ", 
+                         "binary endogenous variable. Using Zbin = 2 instead."))
+          Zbin <- 2
+        }
+        data.probit <- data.misspecified.cloglog(n, par, iseed + run, Wbin)
+        out <- GOF_test_parallel(data.probit, B, iseed, Zbin, Wbin, display.plot = FALSE)
+        
       } else {
-        stop("'type' parameter must be either 'skew', 't' or 'heteroscedastic'.")
+        stop(paste0("'type' parameter must be either 'skew', 't', 'heteroscedastic'",
+                    ", 'probit' or 'cloglog'."))
       }
     } else {
       if (type == "skew") {
         data.skew <- data.misspecified.skew(n, par, iseed + run, Zbin, Wbin)[[1]]
         out <- GOF_test(data.skew, B, iseed, Zbin, Wbin, display.plot = FALSE)
+        
       } else if (type == "t") {
         data.t <- data.misspecified.t(n, par, iseed + run, Zbin, Wbin)
         out <- GOF_test(data.t, B, iseed, Zbin, Wbin, display.plot = FALSE)
+        
       } else if (type == "heteroscedastic") {
         data.heteroscedastic <- data.misspecified.heteroscedastic(n, par, iseed + run, Zbin, Wbin)
         out <- GOF_test(data.heteroscedastic, B, iseed, Zbin, Wbin, display.plot = FALSE)
+        
+      } else if (type == 'probit') {
+        if (Zbin == 1) {
+          warning(paste0("Argument Zbin = 1 invalid as probit control function requires ", 
+                         "binary endogenous variable. Using Zbin = 2 instead."))
+          Zbin <- 2
+        }
+        data.probit <- data.misspecified.probit(n, par, iseed + run, Wbin)
+        out <- GOF_test(data.probit, B, iseed + run, Zbin, Wbin, display.plot = FALSE)
+        
+      } else if (type == 'cloglog') {
+        if (Zbin == 1) {
+          warning(paste0("Argument Zbin = 1 invalid as cloglog control function requires ", 
+                         "binary endogenous variable. Using Zbin = 2 instead."))
+          Zbin <- 2
+        }
+        data.cloglog <- data.misspecified.cloglog(n, par, iseed + run, Wbin)
+        out <- GOF_test(data.cloglog, B, iseed + run, Zbin, Wbin, display.plot = FALSE)
+        
       } else {
-        stop("'type' parameter must be either 'skew', 't' or 'heteroscedastic'.")
+        stop(paste0("'type' parameter must be either 'skew', 't', 'heteroscedastic'",
+                    ", 'probit' or 'cloglog'."))
+        
       }
     }
     

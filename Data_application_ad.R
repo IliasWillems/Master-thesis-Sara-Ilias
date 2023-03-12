@@ -1,6 +1,3 @@
-# DataApplicationJTPA zou ik nog eens moeten nalezen want ik was al best moe
-# toen ik het aan het maken was.
-
 
 # Clear workspace
 rm(list = ls())
@@ -65,4 +62,13 @@ summary(fit_log)
 init.value.theta_1 <- 1
 init.value.theta_2 <- 2
 DataApplicationJPTA(data, init.value.theta_1, init.value.theta_2) # Takes about 1 minute to run
+
+
+
+
+
+
+
+
+
 
