@@ -3721,17 +3721,21 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   S <- NULL
   theta <- parhat[length(parhat)-1]
   s1 <- parhat[totparl + 1]
+  gamma <- parhatG[(length(parhat)+1):length(parhatG)]
   
   # parameter vector:
   # c(intercept, age, has_highschool_degree(1=yes),
   #   participated_in_study(no=0, otherwise=1),
   #   assigned_group(control=0, treatment = 1))
-  dd <- c(1, 22, 1, 1, 1)
+  Zobs <- 1 # Z variable
+  dd <- c(1, 22, 1, 1) #XandW variable
+  V.obs <- (1-Zobs)*((1+exp(dd%*%gamma))*log(1+exp(dd%*%gamma))-(dd%*%gamma)*exp(dd%*%gamma))-Zobs*((1+exp(-(dd%*%gamma)))*log(1+exp(-(dd%*%gamma)))+(dd%*%gamma)*exp(-(dd%*%gamma))) #control function
+  dd.2 <- c(dd[-length(dd)],Zobs,V.obs) #X,Z,V
   
   Time <- sort(exp(Y))
   
   for (i in 1:length(Time)) {
-    sd = (YJtrans(log(Time[i]), theta) - t(parhat[1:5]) %*% dd)/s1
+    sd = (YJtrans(log(Time[i]), theta) - t(parhat[1:length(dd.2)]) %*% dd.2)/s1
     S[i] = 1 - pnorm(sd)
   }
   
@@ -3790,15 +3794,17 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
                                eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
   
+  
+  
   S_noTransform <- NULL
   s1_noTransform <- parhat[totparl + 1]
   
   for (i in 1:length(Time)) {
-    sd = (log(Time[i]) - t(parhat_noTransform[1:5]) %*% dd)/s1_noTransform
+    sd = (log(Time[i]) - t(parhat_noTransform[1:length(dd.2)]) %*% dd.2)/s1_noTransform
     S_noTransform[i] = 1 - pnorm(sd)
   }
-  print(paste("No Transformation: ",exp(qnorm(0.5)*s1_noTransform+t(parhat_noTransform[1:5]) %*% dd)))
-  print(paste("Transformation: ",exp(IYJtrans(qnorm(0.5)*s1+t(parhat[1:5]) %*% dd,theta))))
+  print(paste("No Transformation: ",exp(qnorm(0.5)*s1_noTransform+t(parhat_noTransform[1:length(dd.2)]) %*% dd.2)))
+  print(paste("Transformation: ",exp(IYJtrans(qnorm(0.5)*s1+t(parhat[1:length(dd.2)]) %*% dd.2,theta))))
   
   plot(Time, S, type = 's', col = 1)
   lines(Time, S_noTransform, type = 's', col = 2)
@@ -4186,4 +4192,8 @@ DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   addtorow$pos = list(-1)
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   print(xtab, add.to.row=addtorow, include.colnames=TRUE)
+  
+  return(c(parhat,gammaest))
 }
+
+
