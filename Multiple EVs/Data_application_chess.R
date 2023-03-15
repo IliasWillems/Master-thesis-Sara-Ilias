@@ -64,7 +64,7 @@ q33_idx <- min(which(opening_count_df$cprop > 0.33))
 
 # index of the .66 quantile
 q66_idx <- min(which(opening_count_df$cprop > 0.66))
-# It can be notived that this index is very close to the index of the first
+# It can be noticed that this index is very close to the index of the first
 # opening which occurs more than 10 times. Therefore we will take all openings
 # with an occurence between 2 and 10 to be the second category (option 2).
 
@@ -149,7 +149,7 @@ init.value.theta_2 <- 2
 # NOTE: check code when estimating gamma: why not just use glm?
 #
 
-DataApplicationChess.multipleEV(data, init.value.theta_1, init.value.theta_2) # Takes about 1 minute to run
+parhat_full <- DataApplicationChess.multipleEV(data, init.value.theta_1, init.value.theta_2) # Takes about 1 minute to run
 
 
 
@@ -221,8 +221,97 @@ init.value.theta_2 <- 2
 # NOTE: check code when estimating gamma: why not just use glm?
 #
 
-DataApplicationChess(data.1, init.value.theta_1, init.value.theta_2)
-DataApplicationChess(data.2, init.value.theta_1, init.value.theta_2)
+parhat1=DataApplicationChess(data.1, init.value.theta_1, init.value.theta_2)
+parhat2=DataApplicationChess(data.2, init.value.theta_1, init.value.theta_2)
 
 
+############# Plotting the curves ##############################################
+
+S1_full <- NULL
+S2_full <- NULL
+par <- parhat_full[[1]]
+gamma_1 <-parhat_full[[2]]
+gamma_2 <- parhat_full[[3]]
+theta <- par[length(par)-1]
+s <- par[length(par)-4]
+
+# parameter vector:
+# c(intercept, white_elo,black_elo,poi_is_white)
+# Suppose Z=2 and Z=3
+# W = median(W)
+Zobs.2 <- c(1,0)
+Zobs.3 <- c(0,1)
+dd <- c(1, median(chess$white_elo), median(chess$black_elo),1,median(chess$opponent_exp))
+
+# Calculating control functions
+a = dd%*%(gamma_1-gamma_2)
+b = dd%*%gamma_1
+c = dd%*%gamma_2
+
+E1.nu1 = (1+exp(dd%*%gamma_1)+exp(dd%*%gamma_2))/(exp(dd%*%gamma_1))*(a/(1+exp(-a)+exp(-b))-1/(1+exp(-b))*log(1+exp(a)*(1+exp(-b))))
+E2.nu1 = (1+exp(dd%*%gamma_1)+exp(dd%*%gamma_2))/(exp(dd%*%gamma_2)*(1+exp(-c)))*(-a/(exp(-a)+exp(-a-c)+1)+log(exp(a)+exp(-c)+1))
+E3.nu1 = (1+exp(dd%*%gamma_1)+exp(dd%*%gamma_2))*(1/(1+exp(c))*(-c-(b-c)/(exp(-b)+exp(c-b)+1)+log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b)))
+
+E1.nu2 = (1+exp(dd%*%gamma_1)+exp(dd%*%gamma_2))/(exp(dd%*%gamma_1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
+E2.nu2 = (1+exp(dd%*%gamma_1)+exp(dd%*%gamma_2))/(exp(dd%*%gamma_2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
+E3.nu2 = (1+exp(dd%*%gamma_1)+exp(dd%*%gamma_2))/(1+exp(c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+
+
+V11 = Zobs.2[1]*E1.nu1+Zobs.2[2]*E2.nu1+(1-Zobs.2[1]-Zobs.2[2])*E3.nu1
+V12 = Zobs.3[1]*E1.nu1+Zobs.3[2]*E2.nu1+(1-Zobs.3[1]-Zobs.3[2])*E3.nu1
+V21 = Zobs.2[1]*E1.nu2+Zobs.2[2]*E2.nu2+(1-Zobs.2[1]-Zobs.2[2])*E3.nu2
+V22 = Zobs.3[1]*E1.nu2+Zobs.3[2]*E2.nu2+(1-Zobs.3[1]-Zobs.3[2])*E3.nu2
+
+# Final vectors of covariates
+dd.1  <- c(dd[-length(dd)],Zobs.2,V11,V21) #X,Z,V
+dd.2  <- c(dd[-length(dd)],Zobs.3,V11,V22) #X,Z,V
+
+Time <- 1:10000
+
+
+for (i in 1:length(Time)) {
+  sd1 = (YJtrans(log(Time[i]), theta) - t(par[1:length(dd.1)]) %*% dd.1)/s
+  S1_full[i] = 1 - pnorm(sd1)
+  sd2 = (YJtrans(log(Time[i]), theta) - t(par[1:length(dd.2)]) %*% dd.2)/s
+  S2_full[i] = 1 - pnorm(sd2)
+}
+
+
+S1 <- NULL
+S2 <- NULL
+theta1 <- parhat1[2*ncol(X) + 8]
+theta2 <- parhat2[2*ncol(X) + 8]
+s1 <- parhat1[2*ncol(X) + 5]
+s2 <- parhat2[2*ncol(X) + 5]
+gamma1 <- parhat1[(2*ncol(X)+10):length(parhat1)]
+gamma2 <- parhat2[(2*ncol(X)+10):length(parhat2)]
+
+
+# parameter vector:
+# c(intercept, white_elo,black_elo,poi_is_white)
+# Suppose Z=2 and Z=3
+# W = median(W)
+Zobs <- 1
+dd <- c(1, median(chess$white_elo), median(chess$black_elo),1,median(chess$opponent_exp))
+V1 <- (1-Zobs)*((1+exp(dd%*%gamma1))*log(1+exp(dd%*%gamma1))-(dd%*%gamma1)*exp(dd%*%gamma1))-Zobs*((1+exp(-(dd%*%gamma1)))*log(1+exp(-(dd%*%gamma1)))+(dd%*%gamma1)*exp(-(dd%*%gamma1)))
+V2 <- (1-Zobs)*((1+exp(dd%*%gamma2))*log(1+exp(dd%*%gamma2))-(dd%*%gamma2)*exp(dd%*%gamma2))-Zobs*((1+exp(-(dd%*%gamma2)))*log(1+exp(-(dd%*%gamma2)))+(dd%*%gamma2)*exp(-(dd%*%gamma2)))
+dd.1  <- c(dd[-length(dd)],Zobs,V1) #X,Z,V
+dd.2  <- c(dd[-length(dd)],Zobs,V2) #X,Z,V
+
+for (i in 1:length(Time)) {
+  sd1 = (YJtrans(log(Time[i]), theta1) - t(parhat1[1:length(dd.1)]) %*% dd.1)/s1
+  S1[i] = 1 - pnorm(sd1)
+  sd2 = (YJtrans(log(Time[i]), theta2) - t(parhat2[1:length(dd.2)]) %*% dd.2)/s2
+  S2[i] = 1 - pnorm(sd2)
+}
+
+plot(Time,S1_full, type = 's', col = 1, ylab="Probability", main="Group Z=2")
+lines(Time,S1, type = 's', col = 2)
+legend(x = 7000, y = 0.85, c("Multiple EV", "Stratified"),
+       col = c(1, 2), lty = 1)
+
+plot(Time,S2_full, type = 's', col = 1, ylab="Probability", main="Group Z=3")
+lines(Time,S2, type = 's', col = 2)
+legend(x = 7000, y = 0.85, c("Multiple EV", "Stratified"),
+       col = c(1, 2), lty = 1)
 

@@ -1376,5 +1376,7 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   print(xtab, add.to.row=addtorow, include.colnames=TRUE)
   
+  return(list(parhat,gamma1,gamma2))
+  
   
 }
