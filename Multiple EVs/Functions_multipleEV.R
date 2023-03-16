@@ -47,6 +47,8 @@ DYJtrans = function(y,theta) # Derivative of Yeo-Johnson transformation
 
 dat.sim.reg.Zbin = function(n,par,iseed){
   
+  parl = length(par[[1]])
+  
   set.seed(iseed)
   beta = par[[1]]
   eta = par[[2]]
@@ -197,6 +199,8 @@ LikFG2 = function(par,Y,Delta,Xi,M,discrete){
   }
   l = 2*(k+2)
   v = k+5
+  
+  parlgamma <- (length(par) - (l+9))/2
 
   beta = as.matrix(par[1:k])
   alphaT.1 = par[k+1]
@@ -311,6 +315,8 @@ LikIGamma2 = function(par,Y,Delta,Xi,M,discrete){
   l = 2*(k+2)
   v = k+5
   
+  parlgamma <- (length(par) - (l+8))/2
+  
   beta = as.matrix(par[1:k])
   alphaT.1 = par[k+1]
   alphaT.2 = par[k+2]
@@ -368,7 +374,16 @@ LikIGamma2 = function(par,Y,Delta,Xi,M,discrete){
 ######################## simulation function ###################################
 
 
-SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.theta_2) {
+SimulationCI22_MEV <- function(n, nsim, iseed, init.value.theta_1, init.value.theta_2,
+                               part.to.evaluate, number.of.parts) {
+  
+  if (nsim %% number.of.parts != 0) {
+    stop("nsim needs to be a multiple of number.of.parts.")
+  }
+  if ((part.to.evaluate > number.of.parts) || (part.to.evaluate <= 0)) {
+    stop("part.to.evaluate is not valid.")
+  }
+  
   sum = c()
   sum1 = c()
   sum2 = c()
@@ -380,10 +395,26 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
   results2 = c()
   results3 = c()
   
-  for (i in 1:nsim) {
-    # i = 1 # for testing
+  # Create the appropriate set of i's to check
+  part.size <- nsim / number.of.parts
+  i.to.check <- 1:nsim
+  i.to.check <- i.to.check[(part.size*(part.to.evaluate-1) + 1):(part.size*part.to.evaluate)]
+  
+  package.vector <- c("MASS", "nloptr", "numDeriv", "VGAM", "nnet")
+  export.vector <- c("parN", "nEV", "parlgamma")
+  
+  result_list <- foreach(i = i.to.check,
+                         .packages = package.vector,
+                         .export = export.vector) %dopar% 
+    {
+                           
+    source("Functions_multipleEV.R")
     
-    if (round(i %% (nsim/10)) == 0) {cat((i/nsim)*100,"%", "\n", sep="")}
+    # cat((i - i.to.check[1] + 1)*100/length(i.to.check), "% Completion \n")
+    
+    parl = length(parN[[1]])
+    totparl = 2*parl
+    # parlgamma = (parl-nEV)
     
     data = dat.sim.reg.Zbin(n,parN,iseed+i)
     
@@ -397,8 +428,13 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
     W = data[,(parl+2):(parl+3)]
     XandW = cbind(data[,4],X,W)
     
-    gammaest <- nloptr(x0=rep(0,2*parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma*2)),ub=c(rep(Inf,parlgamma*2)),
-                       eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    # gammaest <- nloptr(x0=rep(0,2*parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma*2)),ub=c(rep(Inf,parlgamma*2)),
+    #                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+
+    end_var_class <- relevel(as.factor(Z1 + 2*Z2), ref = 1)
+    gammaest <- summary(multinom(end_var_class ~ -1 + XandW, ref = 1, trace = FALSE))$coefficients
+    gammaest <- c(gammaest[1,], gammaest[2,])
     
     gamma1 <- gammaest[1:parlgamma]  
     gamma2 <- gammaest[(parlgamma+1):(2*parlgamma)]
@@ -476,7 +512,7 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
     
     H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,Xi=Xi,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
     H1I = ginv(H1)
-    se1 = sqrt(abs(diag(H1I)));
+    se1 = sqrt(abs(diag(H1I)))
     
     # Delta method variance (makes sure no negative values in CI for variance)
     # --> Take the log of the estimates, construct CI for the log-estimates and
@@ -550,8 +586,7 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
     # - gamma2 = (intercept, gamma_X, gamma_W1, gamma_W2)
     
     Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,discrete=1,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
-    
-  
+
     # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta
     # (i.e. H_delta).
     H = Hgamma[1:length(initd),1:length(initd)]
@@ -590,8 +625,6 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
       Epartvar2 = Epartvar2+(partvar%*%t(partvar))
       
     }
-  
-
     
     totvarex = HI%*%Epartvar2%*%t(HI)
     
@@ -705,7 +738,7 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
     # [13:15] : params for (gamma_0, gamma_X, gamma_W)
     parhatGI = c(parhat1,as.vector(gamma1),as.vector(gamma2))
     
-    HgammaI = hessian(LikIGamma2,parhatGI,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,discrete=1,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    HgammaI = hessian(LikIGamma2,parhatGI,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,discrete=1,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
     
     HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
     HIInd = ginv(HInd)
@@ -762,239 +795,419 @@ SimulationCI22_EV = function(n, nsim, iseed, init.value.theta_1, init.value.thet
     EC4 = cbind(matrix(c(parhat1[1:totparl]-1.96*(seI[1:totparl]),s1_lI,s2_lI,rItheta1_l, rItheta2_l),ncol=1),
                 matrix(c(parhat1[1:totparl]+1.96*(seI[1:totparl]),s1_uI,s2_uI,rItheta1_u, rItheta2_u), ncol=1))
     
-    results = rbind(results,c(parhat,se,c(t(EC1))))
-    results1 = rbind(results1,c(parhatE,se1,c(t(EC2))))
-    results2 = rbind(results2,c(parhatre,sere,c(t(EC3))))
-    results3 = rbind(results3,c(parhat1,seI,c(t(EC4))))
+    return(list(c(parhat,se,c(t(EC1))), c(parhatE,se1,c(t(EC2))),
+                c(parhatre,sere,c(t(EC3))), c(parhat1,seI,c(t(EC4)))))
   }
   
-  print(per/(n*nsim))     #percentage of censoring
-  print(per2/(n*nsim))
+  # Combine all separate results
+  for (i in 1:length(result_list)) {
+    results = rbind(results, result_list[[i]][[1]])
+    results1 = rbind(results1, result_list[[i]][[2]])
+    results2 = rbind(results2, result_list[[i]][[3]])
+    results3 = rbind(results3, result_list[[i]][[4]])
+  }
   
-  #
-  # Results of model with estimated V
-  #
+  percentage1 <- per/(n*length(i.to.check))     #percentage of censoring
+  percentage2 <- per2/(n*length(i.to.check))
   
-  # Put all parameters (except gamma) into a vector
-  par0 = c(parN[[1]],parN[[2]],parN[[3]])
-  par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
+  df.estV <- data.frame(results, row.names = i.to.check)
+  df.naive <- data.frame(results1, row.names = i.to.check)
+  df.realV <- data.frame(results2, row.names = i.to.check)
+  df.indep <- data.frame(results3, row.names = i.to.check)
+  df.percentage <- data.frame(per1 = percentage1, per2 = percentage2,
+                              row.names = part.to.evaluate)
   
-  # par0:
-  # - [1:6] : beta
-  # - [7:12]: eta
-  # - [13]  : sigma1
-  # - [14]  : sigma2
-  # - [15]  : rho
-  # - [16]  : theta_1
-  # - [17]  : theta_2
-  #
-  # - totparl = 12
+  write.csv(df.estV, file = paste0("Simulations_multipleEV/Size ",n,"/df_MEV_estV_",
+                                   part.to.evaluate, "_out_of_",
+                                   number.of.parts, ".csv"),
+            row.names = TRUE)
   
-  # Statistics on the parameter estimates
-  Bias = apply(results[,1:(totparl+5)]-par0m,2,mean)
-  ESE = apply(results[,1:(totparl+5)],2,sd)
-  RMSE = sqrt(apply((results[,1:(totparl+5)]-par0m)^2,2,mean))
+  write.csv(df.naive, file = paste0("Simulations_multipleEV/Size ",n,"/df_MEV_naive_",
+                                    part.to.evaluate, "_out_of_",
+                                    number.of.parts, ".csv"),
+            row.names = TRUE)
   
-  # Statistics on the parameter standard deviations
-  MSD  = apply(results[,((totparl+5)+1):(2*(totparl+5))],2, mean)
+  write.csv(df.realV, file = paste0("Simulations_multipleEV/Size ",n,"/df_MEV_realV_",
+                                    part.to.evaluate, "_out_of_",
+                                    number.of.parts, ".csv"),
+            row.names = TRUE)
   
-  # Statistics on the parameter CI's: for each parameter, check how many times the
-  # true value is contained in the estimated confidence interval. We divide by
-  # nsim to obtain a percentage.
-  CP = rep(0,totparl+5)
-  datacp = results[,(2*(totparl+5)+1):(4*(totparl+5))]
-  for(i in 1:(totparl+5)) {
-    index=c(2*i-1,2*i)
-    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
-  } 
+  write.csv(df.indep, file = paste0("Simulations_multipleEV/Size ",n,"/df_MEV_indep_",
+                                    part.to.evaluate, "_out_of_",
+                                    number.of.parts, ".csv"),
+            row.names = TRUE)
   
-  summary = cbind(Bias,ESE,MSD,RMSE,CP) 
+  write.csv(df.percentage,
+            file = paste0("Simulations_multipleEV/Size ",n,"/df_MEV_percentage_",
+                          part.to.evaluate, "_out_of_", number.of.parts, ".csv"),
+            row.names = TRUE)
+}
+
+
+Summarize_results_full_MEV <- function(CI) {
   
-  #
-  # Model with no V
-  #
+  # Some input validation
+  if (CI != "CI22") {
+    stop("Only implemented for CI22")
+  }
   
-  # Put all parameters (except gamma) into a vector
-  par0 = c(parN[[1]],parN[[2]],parN[[3]])
+  # For each sample size, create a data set of the results. (The code in this 
+  # for-loop is just a copy-paste from the summarize_results function above)
+  sum_list = list()
+  sum1_list = list()
+  sum2_list = list()
+  sum3_list = list()
   
-  # Remove parameters pertaining to V
-  par0 = par0[-(parl)]
-  par0 = par0[-(parl-1)]
-  par0 = par0[-(2*parl-2)]
-  par0 = par0[-(2*parl-3)]
-  par0m = matrix(par0,nsim,(totparl+1),byrow=TRUE)
+  for (samsize_index in 1:length(samsize)) {
+
+    n <- samsize[samsize_index]
+    
+    # Create correct folder name
+    folder.name <- paste0("Simulations_multipleEV/Size ",n)
+    
+    #
+    # Create full data sets
+    #
+    
+    # Get all file names in 'Data 2500 simulations ...' folder
+    files <- list.files(folder.name)
+    
+    # Read all files starting with "df_estV_". Store them in a list object. Do the
+    # same for files starting with "df_naive_", "df_realV_", "df_indep" and
+    # "df_percentage_"
+    data_estV <- list()
+    data_naive <- list()
+    data_realV <- list()
+    data_indep <- list()
+    data_percentage <- list()
+    
+    for (file_name in files) {
+      if (grepl("df_MEV_estV_", file_name)) {
+        data_estV[[length(data_estV) + 1]] <- read.csv(paste0(folder.name, "/", file_name))
+      }
+      
+      if (grepl("df_MEV_naive_", file_name)) {
+        data_naive[[length(data_naive) + 1]] <- read.csv(paste0(folder.name, "/", file_name))
+      }
+      
+      if (grepl("df_MEV_realV_", file_name)) {
+        data_realV[[length(data_realV) + 1]] <- read.csv(paste0(folder.name, "/", file_name))
+      }
+      
+      if (grepl("df_MEV_indep_", file_name)) {
+        data_indep[[length(data_indep) + 1]] <- read.csv(paste0(folder.name, "/", file_name))
+      }
+      
+      if (grepl("df_MEV_percentage_", file_name)) {
+        data_percentage[[length(data_percentage) + 1]] <- read.csv(paste0(folder.name, "/", file_name))
+      }
+    }
+    
+    # Create empty data frames
+    results.estV <- data_estV[[1]]
+    results.naive <- data_naive[[1]]
+    results.realV <- data_realV[[1]]
+    results.indep <- data_indep[[1]]
+    results.percentage <- data_percentage[[1]]
+    
+    # Append all separate data frames
+    if (length(data_estV) > 1) {
+      for (i in 2:length(data_estV)) {
+        results.estV <- rbind(results.estV, data_estV[[i]])
+        results.naive <- rbind(results.naive, data_naive[[i]])
+        results.realV <- rbind(results.realV, data_realV[[i]])
+        results.indep <- rbind(results.indep, data_indep[[i]])
+        results.percentage <- rbind(results.percentage, data_percentage[[i]])
+      }
+    }
+    
+    # Sanity check for data: check if each index only appears once. If sanity
+    # check is okay, remove the extra index column.
+    if (length(results.estV$X) != length(unique(results.estV$X))) {
+      stop("Duplicates in results.estV detected")
+    } else {
+      results.estV <- results.estV[,-1]
+    }
+    if (length(results.naive$X) != length(unique(results.naive$X))) {
+      stop("Duplicates in results.naive detected")
+    } else {
+      results.naive <- results.naive[,-1]
+    }
+    if (length(results.realV$X) != length(unique(results.realV$X))) {
+      stop("Duplicates in results.realV detected")
+    } else {
+      results.realV <- results.realV[,-1]
+    }
+    if (length(results.indep$X) != length(unique(results.indep$X))) {
+      stop("Duplicates in results.indep detected")
+    } else {
+      results.indep <- results.indep[,-1]
+    }
+    if (length(results.percentage$X) != length(unique(results.percentage$X))) {
+      stop("Duplicates in results.percentage detected")
+    } else {
+      results.percentage <- results.percentage[,-1]
+    }
+    
+    #
+    # Results of model with estimated V
+    #
+    
+    # Put all parameters (except gamma) into a vector
+    par0 = c(parN[[1]],parN[[2]],parN[[3]])
+    par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
+    
+    # par0:
+    # - [1:6] : beta
+    # - [7:12]: eta
+    # - [13]  : sigma1
+    # - [14]  : sigma2
+    # - [15]  : rho
+    # - [16]  : theta_1
+    # - [17]  : theta_2
+    #
+    # - totparl = 12
+    
+    # Statistics on the parameter estimates
+    Bias = apply(results.estV[,1:(totparl+5)]-par0m,2,mean)
+    ESE = apply(results.estV[,1:(totparl+5)],2,sd)
+    RMSE = sqrt(apply((results.estV[,1:(totparl+5)]-par0m)^2,2,mean))
+    
+    # Statistics on the parameter standard deviations
+    MSD  = apply(results.estV[,((totparl+5)+1):(2*(totparl+5))],2, mean)
+    
+    # Statistics on the parameter CI's: for each parameter, check how many times the
+    # true value is contained in the estimated confidence interval. We divide by
+    # nsim to obtain a percentage.
+    CP = rep(0,totparl+5)
+    datacp = results.estV[,(2*(totparl+5)+1):(4*(totparl+5))]
+    for(i in 1:(totparl+5)) {
+      index=c(2*i-1,2*i)
+      CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nrow(results.estV)
+    } 
+    
+    sum_list[[samsize_index]] <- cbind(Bias,ESE,MSD,RMSE,CP)
+    
+    #
+    # Model with no V
+    #
+    
+    # Put all parameters (except gamma) into a vector
+    par0 = c(parN[[1]],parN[[2]],parN[[3]])
+    
+    # Remove parameters pertaining to V
+    par0 = par0[-(parl)]
+    par0 = par0[-(parl-1)]
+    par0 = par0[-(2*parl-2)]
+    par0 = par0[-(2*parl-3)]
+    par0m = matrix(par0,nsim,(totparl+1),byrow=TRUE)
+    
+    # par0:
+    # - [1:4] : beta
+    # - [5:8] : eta
+    # - [9]   : sigma1
+    # - [10]  : sigma2
+    # - [11]  : rho
+    # - [12]  : theta_1
+    # - [13]  : theta_2
+    #
+    # - totparl = 12
+    
+    # Statistics on the parameter estimates
+    Bias = apply(results.naive[,1:(totparl+1)]-par0m,2,mean)
+    ESE = apply(results.naive[,1:(totparl+1)],2,sd)
+    RMSE = sqrt(apply((results.naive[,1:(totparl+1)]-par0m)^2,2,mean))
+    
+    # Statistics on the parameter standard deviations
+    MSD  = apply(results.naive[,((totparl+1) + 1):(2*(totparl+1))],2,mean)
+    
+    # Statistics on the parameter CI's: for each parameter, check how many times the
+    # true value is contained in the estimated confidence interval. We divide by
+    # nsim to obtain a percentage.
+    CP = rep(0,(totparl+1))
+    datacp = results.naive[,(2*(totparl+1)+1):(4*(totparl+1))]
+    for(i in 1:(totparl+1)){
+      index = c(2*i-1,2*i)
+      CP[i] = sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nrow(results.naive)
+    } 
+    
+    sum1_list[[samsize_index]] <- cbind(Bias,ESE,MSD,RMSE,CP) 
+    
+    #
+    # Model with real V
+    #
+    
+    par0 = c(parN[[1]],parN[[2]],parN[[3]])
+    par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
+    # par0:
+    # - [1:6] : beta
+    # - [7:12]: eta
+    # - [13]  : sigma1
+    # - [14]  : sigma2
+    # - [15]  : rho
+    # - [16]  : theta_1
+    # - [17]  : theta_2
+    #
+    # - totparl = 12
+    
+    # Statistics on the parameter estimates
+    Bias = apply(results.realV[,1:(totparl+5)]-par0m,2,mean)
+    ESE = apply(results.realV[,1:(totparl+5)],2,sd)
+    RMSE = sqrt(apply((results.realV[,1:(totparl+5)]-par0m)^2,2,mean))
+    
+    # Statistics on the standard deviation estimates
+    MSD  = apply(results.realV[,((totparl+5)+1):(2*(totparl+5))],2, mean)
+    
+    # Statistics on the parameter CI's: for each parameter, check how many times the
+    # true value is contained in the estimated confidence interval. We divide by
+    # nsim to obtain a percentage.
+    CP = rep(0,totparl+5)
+    datacp = results.realV[,(2*(totparl+5)+1):(4*(totparl+5))]
+    for(i in 1:(totparl+5)) {
+      index=c(2*i-1,2*i)
+      CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nrow(results.realV)
+    } 
+    
+    sum2_list[[samsize_index]] <- cbind(Bias,ESE,MSD,RMSE,CP) 
+    
+    #
+    # Results of model with estimated V but independence
+    #
+    
+    par0 = c(parN[[1]],parN[[2]],parN[[3]][1],parN[[3]][2], parN[[3]][4], parN[[3]][5])
+    par0m = matrix(par0,nsim,(totparl+4),byrow=TRUE)
+    # par0:
+    # - [1:6] : beta
+    # - [7:12]: eta
+    # - [13]   : sigma1
+    # - [14]  : sigma2
+    # - [15]  : theta_1
+    # - [16]  : theta_2
+    #
+    # - totparl = 12
+    
+    # Statistics on the parameter estimates.
+    Bias = apply(results.indep[,1:(totparl+4)]-par0m,2,mean)
+    ESE = apply(results.indep[,1:(totparl+4)],2,sd)
+    RMSE = sqrt(apply((results.indep[,1:(totparl+4)]-par0m)^2,2,mean))
+    
+    # Statistics on the standard deviation estimates
+    MSD  = apply(results.indep[,((totparl+4)+1):(2*(totparl+4))],2, mean)
+    
+    CP = rep(0,totparl+4)
+    datacp = results.indep[,(2*(totparl+4) + 1):(4*(totparl+4))]
+    for (i in 1:(totparl+4)) {
+      index=c(2*i-1,2*i)
+      CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nrow(results.indep)
+    } 
+    
+    sum3_list[[samsize_index]] <- cbind(Bias,ESE,MSD,RMSE,CP) 
+  }
   
-  # par0:
-  # - [1:4] : beta
-  # - [5:8] : eta
-  # - [9]   : sigma1
-  # - [10]  : sigma2
-  # - [11]  : rho
-  # - [12]  : theta_1
-  # - [13]  : theta_2
-  #
-  # - totparl = 12
+  # Remove the MSD columns
+  for (i in 1:3) {
+    sum_list[[i]] <- subset(sum_list[[i]], select = -MSD)
+    sum1_list[[i]] <- subset(sum1_list[[i]], select = -MSD)
+    sum2_list[[i]] <- subset(sum2_list[[i]], select = -MSD)
+    sum3_list[[i]] <- subset(sum3_list[[i]], select = -MSD)
+  }
   
-  # Statistics on the parameter estimates
-  Bias = apply(results1[,1:(totparl+1)]-par0m,2,mean)
-  ESE = apply(results1[,1:(totparl+1)],2,sd)
-  RMSE = sqrt(apply((results1[,1:(totparl+1)]-par0m)^2,2,mean))
+  # Two-step estimator
+  sum <- cbind(sum_list[[1]], sum_list[[2]], sum_list[[3]])
   
-  # Statistics on the parameter standard deviations
-  MSD  = apply(results1[,((totparl+1) + 1):(2*(totparl+1))],2,mean)
+  # naive estimator
+  sum1 <- cbind(sum1_list[[1]], sum1_list[[2]], sum1_list[[3]])
   
-  # Statistics on the parameter CI's: for each parameter, check how many times the
-  # true value is contained in the estimated confidence interval. We divide by
-  # nsim to obtain a percentage.
-  CP = rep(0,(totparl+1))
-  datacp = results1[,(2*(totparl+1)+1):(4*(totparl+1))]
-  for(i in 1:(totparl+1)){
-    index = c(2*i-1,2*i)
-    CP[i] = sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
-  } 
+  # Oracle estimator
+  sum2 <- cbind(sum2_list[[1]], sum2_list[[2]], sum2_list[[3]])
   
-  summary1 = cbind(Bias,ESE,MSD,RMSE,CP) 
-  
-  #
-  # Model with real V
-  #
-  
-  par0 = c(parN[[1]],parN[[2]],parN[[3]])
-  par0m = matrix(par0,nsim,(totparl+5),byrow=TRUE)
-  # par0:
-  # - [1:6] : beta
-  # - [7:12]: eta
-  # - [13]  : sigma1
-  # - [14]  : sigma2
-  # - [15]  : rho
-  # - [16]  : theta_1
-  # - [17]  : theta_2
-  #
-  # - totparl = 12
-  
-  # Statistics on the parameter estimates
-  Bias = apply(results2[,1:(totparl+5)]-par0m,2,mean)
-  ESE = apply(results2[,1:(totparl+5)],2,sd)
-  RMSE = sqrt(apply((results2[,1:(totparl+5)]-par0m)^2,2,mean))
-  
-  # Statistics on the standard deviation estimates
-  MSD  = apply(results2[,((totparl+5)+1):(2*(totparl+5))],2, mean)
-  
-  # Statistics on the parameter CI's: for each parameter, check how many times the
-  # true value is contained in the estimated confidence interval. We divide by
-  # nsim to obtain a percentage.
-  CP = rep(0,totparl+5)
-  datacp = results[,(2*(totparl+5)+1):(4*(totparl+5))]
-  for(i in 1:(totparl+5)) {
-    index=c(2*i-1,2*i)
-    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
-  } 
-  
-  summary2 = cbind(Bias,ESE,MSD,RMSE,CP) 
-  
-  #
-  # Results of model with estimated V but independence
-  #
-  
-  par0 = c(parN[[1]],parN[[2]],parN[[3]][1],parN[[3]][2], parN[[3]][4], parN[[3]][5])
-  par0m = matrix(par0,nsim,(totparl+4),byrow=TRUE)
-  # par0:
-  # - [1:6] : beta
-  # - [7:12]: eta
-  # - [13]   : sigma1
-  # - [14]  : sigma2
-  # - [15]  : theta_1
-  # - [16]  : theta_2
-  #
-  # - totparl = 12
-  
-  # Statistics on the parameter estimates.
-  Bias = apply(results3[,1:(totparl+4)]-par0m,2,mean)
-  ESE = apply(results3[,1:(totparl+4)],2,sd)
-  RMSE = sqrt(apply((results3[,1:(totparl+4)]-par0m)^2,2,mean))
-  
-  # Statistics on the standard deviation estimates
-  MSD  = apply(results3[,((totparl+4)+1):(2*(totparl+4))],2, mean)
-  
-  CP = rep(0,totparl+4)
-  datacp = results3[,(2*(totparl+4) + 1):(4*(totparl+4))]
-  for (i in 1:(totparl+4)) {
-    index=c(2*i-1,2*i)
-    CP[i]=sum(datacp[,index[1]]<=par0[i] & datacp[,index[2]]>=par0[i])/nsim
-  } 
-  
-  summary3 = cbind(Bias,ESE,MSD,RMSE,CP) 
-  
-  sum = summary
-  sum1 = summary1
-  sum2 = summary2
-  sum3 = summary3
+  # Independence estimator
+  sum3 <- cbind(sum3_list[[1]], sum3_list[[2]], sum3_list[[3]])
+
   
   ## Results of model with estimated V
   
-  colnames(sum) = c("Bias","ESD","ASE","RMSE","CR")
+  colnames(sum) = rep(c("Bias", "ESD", "RMSE", "CR"), 3)
   rownames(sum) = namescoef
+  sum_all_names <- namescoef
+  
+  ## Results of naive model
+  colnames(sum1) <- rep(c("Bias", "ESD", "RMSE", "CR"), 3)
+  namescoefr <- namescoef[-((parl-1):parl)]
+  namescoefr <- namescoefr[-((2*parl-3):(2*parl-2))]
+  rownames(sum1) <- namescoefr
+  sum_all_names <- c(sum_all_names, namescoefr)
+  
+  ## Results of independence model
+  colnames(sum3) <- rep(c("Bias", "ESD", "RMSE", "CR"), 3)
+  namescoefi <- namescoef[-(length(namescoef) - 2)]
+  rownames(sum3) <- namescoefi
+  sum_all_names <- c(sum_all_names, namescoefi)
+  
+  
+  ## Results of oracle estimator
+  colnames(sum2) <- rep(c("Bias", "ESD", "RMSE", "CR"), 3)
+  rownames(sum2) <- namescoef
+  sum_all_names <- c(sum_all_names, namescoef)
+  
+  # Stack all results in a single data frame
+  sum_all <- as.data.frame(rbind(sum, sum1, sum3, sum2))
+  
+  # Since the R does not allow duplicate row names, we also store
+  # the row names in a column
+  sum_all$'' <- sum_all_names
+  
+  # Reorder columns so to put names column in front
+  sum_all <- sum_all[c(13, 1:12)]
   
   # Make nice Latex table
-  xtab = xtable(sum)
+  xtab <- xtable(sum_all)
+  align(xtab) <- c("c|c|cccc|cccc|cccc|")
   
   # set to 3 significant digits
-  digits(xtab) = rep(3,6)
+  digits(xtab) = rep(3,14)
   
-  header= c("sample size",n)
-  addtorow = list()
-  addtorow$pos = list(-1)
-  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+  header <- paste0('\\hline \\multicolumn{5}{|c}{$n = 500$} & \\multicolumn{4}{|c}{$n = 1000$}',
+                   '& \\multicolumn{4}{|c|}{$n = 2000$} \\\\')
+  title_2step <- "\\hline \\multicolumn{13}{|c|}{two-step estimator} \\\\ "
+  title_naive <- "\\hline \\multicolumn{13}{|c|}{naive estimator} \\\\ \\hline "
+  title_indep <- "\\hline \\multicolumn{13}{|c|}{independence estimator} \\\\ \\hline "
+  title_oracle <- "\\hline \\multicolumn{13}{|c|}{oracle estimator} \\\\ \\hline "
+  fit_to_page <- "\begin{adjustbox}{width=1\textwidth}"
+  addtorow <- list()
+  addtorow$pos <- list(-1, -1, 13, 24, 36)
+  addtorow$command <- c(header, title_2step, title_naive, title_indep, title_oracle)
+  
+  # For correct naming of the file
+  numbers <- substr(CI, 3, 4)
+  
+  
+  
+  ##############################################################################
+  # Note that the generated table will result in the file not compiling. This  #
+  # is because the 'adjustbox'-environment needs the argument                  #
+  #                                                                            #
+  # \begin{adjustbox}{width=\linewidth}                                        #
+  #                                                                            #
+  # but unfortunately, print.xtable does not allow for this argument to be     #
+  # specified.                                                                 #
+  ##############################################################################
+  
+  
+  print.xtable(xtab, include.rownames = F,
+               add.to.row = addtorow, append=TRUE, table.placement = "H",
+               sanitize.text.function = function(x){x},
+               sanitize.colnames.function = function(x){gsub("[[:punct:], [:digit:]]", "", x)},
+               latex.environments = c("adjustbox", "center"),
+               comment = F)
   
   # Save table code in .txt-file. Also add header row.
-  print.xtable(xtab,file=paste0("YJ_multipleEV_estV_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
-  print(xtab, add.to.row=addtorow, include.colnames=TRUE)
-  
-  ## Results of model with no V
-  
-  colnames(sum1)=c("Bias","ESD","ASE","RMSE","CR")
-  namescoefr=namescoef[-(parl)]
-  namescoefr=namescoefr[-(parl-1)]
-  namescoefr=namescoefr[-(2*parl-2)]
-  namescoefr=namescoefr[-(2*parl-3)]
-  rownames(sum1)=namescoefr
-  xtab1 = xtable(sum1)
-  digits(xtab1) = rep(3,6)
-  header= c("sample size",n)
-  addtorow = list()
-  addtorow$pos = list(-1)
-  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  
-  print.xtable(xtab1,file=paste0("YJ_multipleEV_noV_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
-  print(xtab1, add.to.row=addtorow, include.colnames=TRUE)
-  
-  ## Results of model with real V
-  
-  colnames(sum2) = c("Bias","ESD","ASE","RMSE","CR")
-  rownames(sum2) = namescoef
-  xtab2 = xtable(sum2)
-  digits(xtab2) = rep(3,6)
-  header= c("sample size",n)
-  addtorow = list()
-  addtorow$pos = list(-1)
-  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  
-  print.xtable(xtab2,file=paste0("YJ_multipleEV_realV_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
-  print(xtab2, add.to.row=addtorow, include.colnames=TRUE)
-  
-  ## Results of model with estimated V but independence
-  
-  colnames(sum3) = c("Bias","ESD","ASE","RMSE","CR")
-  rownames(sum3) = c(namescoef[1:(length(namescoef)-3)],namescoef[length(namescoef)-1],namescoef[length(namescoef)])
-  xtab3 = xtable(sum3)
-  digits(xtab3) = rep(3,6)
-  header= c("sample size",n)
-  addtorow = list()
-  addtorow$pos = list(-1)
-  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  
-  print.xtable(xtab3,file=paste0("YJ_multipleEV_IndEstV_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
-  print(xtab3, add.to.row=addtorow, include.colnames=TRUE)
+  print.xtable(xtab, include.rownames = F,
+               add.to.row = addtorow, append=TRUE, table.placement = "H",
+               sanitize.text.function = function(x){x},
+               sanitize.colnames.function = function(x){gsub("[[:punct:], [:digit:]]", "", x)},
+               latex.environments = c("adjustbox", "center"),
+               file = paste0("Simulation results_multipleEV/YJ_ad_all_CI22.txt"))
 }
 
 ######################## Application ###########################################

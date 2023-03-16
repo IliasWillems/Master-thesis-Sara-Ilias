@@ -9,6 +9,10 @@ library(nloptr)
 library(numDeriv)
 library(xtable)
 library(VGAM)
+library(doParallel)
+library(foreach)
+library(pbivnorm)
+library(survival)
 source("Functions_ad.r")
 
 # Select all males that have children (fathers)
@@ -79,7 +83,10 @@ Zbin <- 2
 Wbin <- 2
 B <- 500
 
+clust <- makeCluster(10)
+registerDoParallel(clust)
 GOF_test_parallel(data_GOF, B, iseed, Zbin, Wbin, display.plot = TRUE)
+stopCluster(clust)
 
 
 
