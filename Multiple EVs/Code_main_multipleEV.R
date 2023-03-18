@@ -30,7 +30,7 @@ number.of.parts <- 250
 
 # For now, we only evaluate 100 parts. We can extend this number later if
 # possible.
-parts.to.evaluate <- 117:175
+parts.to.evaluate <- 241:250
 
 
 MAX_NBR_CORES_TO_USE <- 10
