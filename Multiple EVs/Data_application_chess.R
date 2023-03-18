@@ -14,7 +14,21 @@ library(VGAM)
 library(dplyr)
 library(nnet)
 
+# Remove missing observations
 chess <- chess[!(is.na(chess$time)),]
+
+# Check for outliers
+plot(chess[chess$delta == 1,]$time, rep(1.05, sum(chess$delta == 1)),
+     main = "Plot of time until checkmate",
+     xlab = "Time (in seconds)",
+     ylab = "",
+     yaxt = "n")
+points(chess[chess$delta == 0,]$time, rep(1, sum(chess$delta == 0)), col = "red")
+points(chess[chess$delta == 2,]$time, rep(0.95, sum(chess$delta == 2)), col = "green")
+
+# Remove a couple of outliers
+chess <- chess[chess$time < 1500, ]
+n <- nrow(chess)
 
 # time
 Y <- as.matrix(log(chess$time))
