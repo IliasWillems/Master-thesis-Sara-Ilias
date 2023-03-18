@@ -30,7 +30,7 @@ number.of.parts <- 250
 
 # For now, we only evaluate 100 parts. We can extend this number later if
 # possible.
-parts.to.evaluate <- 51:51
+parts.to.evaluate <- 117:175
 
 
 MAX_NBR_CORES_TO_USE <- 10
@@ -74,6 +74,8 @@ for (part.to.evaluate in parts.to.evaluate) {
 
 # Summarize results into latex table
 Summarize_results_full_MEV("CI22")
+  # Add "{width=\linewidth}" after "\begin{adjustbox}", otherwise the resulting
+  # LaTeX code won't compile.
 
 
 
