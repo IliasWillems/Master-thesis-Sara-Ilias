@@ -290,6 +290,9 @@ for (i in 1:length(Time)) {
   S2_full[i] = 1 - pnorm(sd2)
 }
 
+print(paste("Multiple EV: ",exp(IYJtrans(qnorm(0.5)*s+t(par[1:length(dd.2)]) %*% dd.2,theta))))
+
+
 
 S1 <- NULL
 S2 <- NULL
@@ -319,12 +322,16 @@ for (i in 1:length(Time)) {
   S2[i] = 1 - pnorm(sd2)
 }
 
+print(paste("Stratified: ",exp(IYJtrans(qnorm(0.5)*s2+t(parhat2[1:length(dd.2)]) %*% dd.2,theta2))))
+
+
 plot(Time,S1_full, type = 's', col = 1, ylab="Probability", main="Group Z=2")
 lines(Time,S1, type = 's', col = 2)
 legend(x = 7000, y = 0.85, c("Multiple EV", "Stratified"),
        col = c(1, 2), lty = 1)
 
-plot(Time,S2_full, type = 's', col = 1, ylab="Probability", main="Group Z=3")
+
+plot(Time,S2_full, type = 's', col = 1, ylab="Probability", main="Time until checkmate")
 lines(Time,S2, type = 's', col = 2)
 legend(x = 7000, y = 0.85, c("Multiple EV", "Stratified"),
        col = c(1, 2), lty = 1)
