@@ -16,22 +16,38 @@ library(nnet)
 
 # Remove missing observations
 chess <- chess[!(is.na(chess$time)),]
-
-# Check for outliers
-plot(chess[chess$delta == 1,]$time, rep(1.05, sum(chess$delta == 1)),
-     main = "Plot of time until checkmate",
-     xlab = "Time (in seconds)",
-     ylab = "",
-     yaxt = "n")
-points(chess[chess$delta == 0,]$time, rep(1, sum(chess$delta == 0)), col = "red")
-points(chess[chess$delta == 2,]$time, rep(0.95, sum(chess$delta == 2)), col = "green")
+plot(chess[chess$delta==1,]$white_elo,log(chess[chess$delta == 1, ]$time))
+plot(chess[chess$delta==1,]$black_elo,log(chess[chess$delta == 1, ]$time))
 
 # Remove a couple of outliers
-chess <- chess[chess$time < 1500, ]
+chess <- chess[chess$white_elo>=1000,]
+chess <- chess[chess$black_elo>=1000,]
+
+plot(chess[chess$delta==1,]$white_elo,log(chess[chess$delta == 1, ]$time))
+plot(chess[chess$delta==1,]$black_elo,log(chess[chess$delta == 1, ]$time))
+
+# Check for outliers
+plot(log(chess[chess$delta == 1,]$time), rep(1.05, sum(chess$delta == 1)),
+     main = "Plot of time until checkmate",
+     xlab = "log time (in seconds)",
+     ylab = "",
+     yaxt = "n",
+     xlim=c(0,12))
+points(log(chess[chess$delta == 0,]$time), rep(1, sum(chess$delta == 0)), col = "red")
+points(log(chess[chess$delta == 2,]$time), rep(0.95, sum(chess$delta == 2)), col = "green")
+
+
+
+# chess <- chess[chess$time < 1500, ]
 n <- nrow(chess)
 
 # time
 Y <- as.matrix(log(chess$time))
+
+# standardize
+chess$opponent_exp <- (chess$opponent_exp-mean(chess$opponent_exp))/sd(chess$opponent_exp)
+chess$white_elo <- (chess$white_elo-mean(chess$white_elo))/sd(chess$white_elo)
+chess$black_elo <- (chess$black_elo-mean(chess$black_elo))/sd(chess$black_elo)
 
 # Even though the data has a column with a censoring indicator, we update it to
 # make it more accurate.
@@ -290,7 +306,7 @@ for (i in 1:length(Time)) {
   S2_full[i] = 1 - pnorm(sd2)
 }
 
-print(paste("Multiple EV: ",exp(IYJtrans(qnorm(0.5)*s+t(par[1:length(dd.2)]) %*% dd.2,theta))))
+print(paste("Multiple EV: ",exp(IYJtrans(qnorm(0.5)*s+t(par[1:length(dd.1)]) %*% dd.1,theta))))
 
 
 
@@ -322,10 +338,10 @@ for (i in 1:length(Time)) {
   S2[i] = 1 - pnorm(sd2)
 }
 
-print(paste("Stratified: ",exp(IYJtrans(qnorm(0.5)*s2+t(parhat2[1:length(dd.2)]) %*% dd.2,theta2))))
+print(paste("Stratified: ",exp(IYJtrans(qnorm(0.5)*s2+t(parhat1[1:length(dd.1)]) %*% dd.1,theta1))))
 
 
-plot(Time,S1_full, type = 's', col = 1, ylab="Probability", main="Group Z=2")
+plot(Time,S1_full, type = 's', col = 1, ylab="Probability", main="Time until checkmate")
 lines(Time,S1, type = 's', col = 2)
 legend(x = 7000, y = 0.85, c("Multiple EV", "Stratified"),
        col = c(1, 2), lty = 1)
