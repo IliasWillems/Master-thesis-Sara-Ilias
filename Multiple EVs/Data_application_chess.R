@@ -163,9 +163,10 @@ init.value.theta_2 <- 2
 # NOTE: check code when estimating gamma: why not just use glm?
 #
 
-parhat_full <- DataApplicationChess.multipleEV(data, init.value.theta_1, init.value.theta_2) # Takes about 1 minute to run
+source("Functions_multipleEV.r")
 
-
+# Takes about 1 minute to run
+parhat_full <- DataApplicationChess.multipleEV(data, init.value.theta_1, init.value.theta_2)
 
 #################### Stratification#############################################
 

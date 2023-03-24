@@ -1351,16 +1351,17 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
     
     
   # Model with estimated V
-
-    
+  
+  # Using the pre-estimated initial values
+  
   initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
   initd[length(initd) - 2] <- 0
-    
+  
   # Again we make sure to properly adapt the upper -and lower bound values of
   # theta.
   parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
-                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-    
+                  eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+  
   parhatG = c(parhat,as.vector(gamma1),as.vector(gamma2))
 
   Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,discrete=0,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
@@ -1590,6 +1591,4 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   print(xtab, add.to.row=addtorow, include.colnames=TRUE)
   
   return(list(parhat,gamma1,gamma2))
-  
-  
 }
