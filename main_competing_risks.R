@@ -46,7 +46,6 @@ Time <- seq(from=1,to=200,by=0.5)
 
 
 # Expected CIR (necessary to calculate RMSE)
-# Z1-W1
 C1R.11<-c()
 C2R.11<-c()
 C1R.01<-c()
