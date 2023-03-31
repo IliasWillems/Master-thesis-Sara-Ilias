@@ -3430,11 +3430,10 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   secder=t(-dlogis(XandW%*%gammaest))%*%prodvec
   
   WM = secder[1:parlgamma]
-  for (i in 2:parlgamma) {
-    newrow<-secder[c(i,(i+2):(i+parlgamma))]
-    WM<-rbind(WM,newrow) 
-  }
-  
+  WM<-rbind(WM,secder[c(2,5,6,7)])
+  WM<-rbind(WM,secder[c(3,6,8,9)])
+  WM<-rbind(WM,secder[c(4,7,9,10)])
+
   WMI = ginv(WM)
   
   diffvec = Z-plogis(XandW%*%gammaest)
@@ -3845,7 +3844,7 @@ DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   ##############################################################################
   
   V <- (1-Z)*((1+exp(XandW%*%gammaest))*log(1+exp(XandW%*%gammaest))-(XandW%*%gammaest)*exp(XandW%*%gammaest))-Z*((1+exp(-(XandW%*%gammaest)))*log(1+exp(-(XandW%*%gammaest)))+(XandW%*%gammaest)*exp(-(XandW%*%gammaest)))
-  
+
   # Create matrix of X, Z and V.
   M <- cbind(data[,4:(2+parl)],V)
   
@@ -3914,11 +3913,12 @@ DataApplicationChess <- function(data, init.value.theta_1, init.value.theta_2) {
   secder=t(-dlogis(XandW%*%gammaest))%*%prodvec
   
   WM = secder[1:parlgamma]
-  for (i in 2:parlgamma) {
-    newrow<-secder[c(i,(i+2):(i+parlgamma))]
-    WM<-rbind(WM,newrow) 
-  }
+  WM<-rbind(WM,secder[c(2,6,7,8,9)])
+  WM<-rbind(WM,secder[c(3,7,10,11,12)])
+  WM<-rbind(WM,secder[c(4,8,11,13,14)])
+  WM<-rbind(WM,secder[c(5,9,12,14,15)])
   
+
   WMI = ginv(WM)
   
   diffvec = Z-plogis(XandW%*%gammaest)
