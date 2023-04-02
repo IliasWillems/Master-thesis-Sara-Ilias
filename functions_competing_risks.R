@@ -1363,17 +1363,17 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   
   Vargamma = Hgamma[1:length(initd),(length(initd)+1):(length(initd)+parlgamma)]
   
-  prodvec = Xandintercept[,1]
+  prodvec = Xandintercept[W==1,1]
   
   for (i in 1:parlgamma) {
     for (j in 2:parlgamma) {
       if (i<=j){
-        prodvec<-cbind(prodvec,diag(Xandintercept[,i]%*%t(Xandintercept[,j])))
+        prodvec<-cbind(prodvec,diag(Xandintercept[W==1,i]%*%t(Xandintercept[W==1,j])))
       }
     }
   }
   
-  secder=t(-dlogis(Xandintercept%*%gammaest))%*%prodvec
+  secder=t(-dlogis(Xandintercept[W==1,]%*%gammaest))%*%prodvec
   
   WM = secder[1:parlgamma]
   for (i in 1:(parlgamma-1)) {
@@ -1382,12 +1382,12 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   }
   
   WMI = ginv(WM)
-  diffvec = Z-plogis(Xandintercept%*%gammaest)
+  diffvec = Z[W==1]-plogis(Xandintercept[W==1,]%*%gammaest)
   
   mi = c()
   
-  for(i in 1:n){
-    newrow<-diffvec[i,]%*%Xandintercept[i,]
+  for(i in 1:sum(W==1)){
+    newrow<-diffvec[i,]%*%(Xandintercept[W==1,])[i,]
     mi = rbind(mi,newrow)
   }
   
@@ -1403,7 +1403,18 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   
   gi = t(gi)
   
-  partvar = gi + Vargamma%*%psii
+  psi <- matrix(0,nrow=dim(Vargamma)[1],ncol=n)
+  sub <- Vargamma%*%psii
+  
+  j=1
+  for (i in 1:n){
+    if (W[i]==1){
+      psi[,i] <- sub[,j]
+      j=j+1
+    }
+  }
+  
+  partvar = gi + psi
   
   Epartvar2 = (partvar%*%t(partvar))
   
@@ -1549,7 +1560,19 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   
   giI = t(giI)
   
-  partvarI = giI + VargammaI%*%psii
+  psiI <- matrix(0,nrow=dim(VargammaI)[1],ncol=n)
+  subI <- VargammaI%*%psii
+  
+  j=1
+  for (i in 1:n){
+    if (W[i]==1){
+      psiI[,i] <- subI[,j]
+      j=j+1
+    }
+  }
+  
+  partvarI = giI + psiI
+
   
   Epartvar2I = (partvarI%*%t(partvarI))
   
