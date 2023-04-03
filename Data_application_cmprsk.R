@@ -93,21 +93,21 @@ results.control <- rbind(results.control, fit$est[1,], fit$est[4,])
 # Plot results
 
 par(mfrow=c(1,2))
-plot(c(0,results.screened[1,]),c(0,results.screened[2,]),type="l", lty=1, main="Cancer", col="forestgreen",xlab="Time",ylab="Probability",xlim=c(0,8000), ylim=c(0,0.02))
-lines(c(0,results.screened[1,]),c(0,results.screened[6,]), lty=4,type="l", col=adjustcolor( "forestgreen", alpha.f = 0.5))
+plot(c(0,results.screened[1,]),c(0,results.screened[2,]),type="l", lty=1, main="Cancer", col="red",xlab="Time",ylab="Probability",xlim=c(0,8000), ylim=c(0,0.02))
+lines(c(0,results.screened[1,]),c(0,results.screened[6,]), lty=4,type="l", col=adjustcolor( "red", alpha.f = 0.5))
 
-lines(c(0,results.screened[1,]),c(0,results.not_screened[2,]), lty=1,type="l", col="red")
-lines(c(0,results.screened[1,]),c(0,results.not_screened[6,]), lty=4,type="l", col=adjustcolor( "red", alpha.f = 0.5))
+lines(c(0,results.screened[1,]),c(0,results.not_screened[2,]), lty=1,type="l", col="azure4")
+lines(c(0,results.screened[1,]),c(0,results.not_screened[6,]), lty=4,type="l", col=adjustcolor( "azure4", alpha.f = 0.5))
 
 lines(c(0,results.screened[1,]),c(0,results.control[2,]), lty=1,type="l")
 lines(c(0,results.screened[1,]),c(0,results.control[6,]), lty=4,type="l", col=adjustcolor( "black", alpha.f = 0.5))
 
 
-plot(c(0,results.screened[1,]),c(0,results.screened[3,]),type="l", lty=1, main="Other cause", col="forestgreen",xlab="Time",ylab="Probability",xlim=c(0,8000), ylim=c(0,0.25))
-lines(c(0,results.screened[1,]),c(0,results.screened[7,]), lty=4,type="l", col=adjustcolor( "forestgreen", alpha.f = 0.5))
+plot(c(0,results.screened[1,]),c(0,results.screened[3,]),type="l", lty=1, main="Other cause", col="red",xlab="Time",ylab="Probability",xlim=c(0,8000), ylim=c(0,0.25))
+lines(c(0,results.screened[1,]),c(0,results.screened[7,]), lty=4,type="l", col=adjustcolor( "red", alpha.f = 0.5))
 
-lines(c(0,results.screened[1,]),c(0,results.not_screened[3,]), lty=1,type="l", col="red")
-lines(c(0,results.screened[1,]),c(0,results.not_screened[7,]), lty=4,type="l", col=adjustcolor( "red", alpha.f = 0.5))
+lines(c(0,results.screened[1,]),c(0,results.not_screened[3,]), lty=1,type="l", col="azure4")
+lines(c(0,results.screened[1,]),c(0,results.not_screened[7,]), lty=4,type="l", col=adjustcolor( "azure4", alpha.f = 0.5))
 
 lines(c(0,results.screened[1,]),c(0,results.control[3,]), lty=1,type="l")
 lines(c(0,results.screened[1,]),c(0,results.control[7,]), lty=4,type="l", col=adjustcolor( "black", alpha.f = 0.5))
