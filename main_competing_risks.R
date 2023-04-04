@@ -46,7 +46,6 @@ Time <- seq(from=1,to=200,by=0.5)
 
 
 # Expected CIR (necessary to calculate RMSE)
-# Z1-W1
 C1R.11<-c()
 C2R.11<-c()
 C1R.01<-c()
@@ -218,4 +217,56 @@ results.mean[,c(19,39,59,99,199)]
 results.mean2[,c(19,39,59,99,199)]
 results.RMSE[,c(19,39,59,99,199)]
 results.RMSE2[,c(19,39,59,99,199)]
+
+
+# Global RMSE
+
+grid.lower.bound <- 1
+grid.upper.bound1 <- 30
+grid.upper.bound2 <- 100
+
+number.of.grid.cells1 <- (grid.upper.bound1-grid.lower.bound)*2+1
+number.of.grid.cells2 <- (grid.upper.bound2-grid.lower.bound)*2+1
+cell.width <- 0.5
+
+
+int.C1.11 <- 0
+int.C2.11 <- 0
+int.C1E.11 <- 0
+int.C2E.11 <- 0
+int.C1I.11 <- 0
+int.C2I.11 <- 0
+
+# RMSE for 11
+for (i in 1:number.of.grid.cells1) {
+  int.C1.11 <- int.C1.11 + results.RMSE[2,i]*(cell.width)
+  int.C2.11 <- int.C2.11 + results.RMSE[3,i]*(cell.width)
+  int.C1E.11 <- int.C1E.11 + results.RMSE[6,i]*(cell.width)
+  int.C2E.11 <- int.C2E.11 + results.RMSE[7,i]*(cell.width)
+  int.C1I.11 <- int.C1I.11 + results.RMSE2[2,i]*(cell.width)
+  int.C2I.11 <- int.C2I.11 + results.RMSE2[3,i]*(cell.width)
+}
+
+
+int.C1.00 <- 0
+int.C2.00 <- 0
+int.C1E.00 <- 0
+int.C2E.00 <- 0
+int.C1I.00 <- 0
+int.C2I.00 <- 0
+
+# RMSE for 11
+for (i in 1:number.of.grid.cells2) {
+  int.C1.00 <- int.C1.00 + results.RMSE[20,i]*(cell.width)
+  int.C2.00 <- int.C2.00 + results.RMSE[21,i]*(cell.width)
+  int.C1E.00 <- int.C1E.00 + results.RMSE[24,i]*(cell.width)
+  int.C2E.00 <- int.C2E.00 + results.RMSE[25,i]*(cell.width)
+  int.C1I.00 <- int.C1I.00 + results.RMSE2[8,i]*(cell.width)
+  int.C2I.00 <- int.C2I.00 + results.RMSE2[9,i]*(cell.width)
+}
+
+
+
+
+
 
