@@ -1212,7 +1212,7 @@ Summarize_results_full_MEV <- function(CI) {
 
 ######################## Application ###########################################
 
-DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.theta_2) {
+DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.theta_2, only_2step_model) {
 
   
   n = nrow(data)
@@ -1285,70 +1285,6 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   # theta is a value between 0 and 2.
   parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-    
-  # Model with no V --> remove data for v from data matrix
-  ME = M[,-((ncol(M)-1):ncol(M))]
-    
-  # Remove coefficients for v
-  initE = parhat1[-parl]
-  initE = initE[-(parl-1)]
-  initE = initE[-(2*parl-2)]
-  initE = initE[-(2*parl-3)]
-    
-  # Append theta's to initE and replace the original theta_1 (now third-to-last
-  # element) with the initial value for rho.
-  initE = c(initE[-length(initE)],initE[length(initE)-1],initE[length(initE)])
-  initE[length(initE) - 2] <- 0
-    
-  # Again we make sure to properly adapt the upper -and lower bound values of
-  # theta.
-  parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=ME,lb=c(rep(-Inf,(totparl-4)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-4)),Inf,Inf,0.99,2,2),
-                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-    
-  H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,Xi=Xi,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
-  H1I = ginv(H1)
-  se1 = sqrt(abs(diag(H1I)));
-    
-  # Delta method variance (makes sure no negative values in CI for variance)
-  # --> Take the log of the estimates, construct CI for the log-estimates and
-  #     backtransform to the original estimates by exponentiating.
-    
-  t_s1 = 1/parhatE[totparl-3]*se1[totparl-3]
-  t_s2 = 1/parhatE[totparl-2]*se1[totparl-2]
-    
-  # Conf. interval for transf. sigma's
-    
-  ms1_l = log(parhatE[totparl-3])-1.96*t_s1 ;  ms1_u = log(parhatE[totparl-3])+1.96*t_s1 
-  ms2_l = log(parhatE[totparl-2])-1.96*t_s2 ;  ms2_u = log(parhatE[totparl-2])+1.96*t_s2 
-    
-  # Back transform
-    
-  S1_l = exp(ms1_l); S1_u = exp(ms1_u); S2_l = exp(ms2_l); S2_u = exp(ms2_u) 
-    
-  # Confidence interval for rho
-    
-  z1t = 0.5*(log((1+parhatE[totparl-1])/(1-parhatE[totparl-1])))     # Fisher's z transform
-  se1_z = (1/(1-parhatE[totparl-1]^2))*se1[totparl-1]
-  z1t_l = z1t-1.96*(se1_z)
-  z1t_u = z1t+1.96*(se1_z)
-    
-    
-  # Back transform
-    
-  r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
-  r1_u = (exp(2*z1t_u)-1)/(exp(2*z1t_u)+1)
-    
-  # Confidence interval for theta
-    
-  r1theta1_l <- parhatE[length(parhatE)-1] - 1.96 * se1[length(parhatE)-1]
-  r1theta1_u <- parhatE[length(parhatE)-1] + 1.96 * se1[length(parhatE)-1]
-  r1theta2_l <- parhatE[length(parhatE)] - 1.96 * se1[length(parhatE)]
-  r1theta2_u <- parhatE[length(parhatE)] + 1.96 * se1[length(parhatE)]
-    
-  # Matrix of all the confidence intervals
-  EC2 = cbind(matrix(c(parhatE[1:(totparl-4)]-1.96*(se1)[1:(totparl-4)],S1_l,S2_l,r1_l, r1theta1_l, r1theta2_l),ncol=1),
-                matrix(c(parhatE[1:(totparl-4)]+1.96*(se1)[1:(totparl-4)],S1_u,S2_u,r1_u, r1theta1_u, r1theta2_u),ncol=1)) 
-    
     
   # Model with estimated V
   
@@ -1448,23 +1384,87 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   # Matrix with all confidence intervals
   EC1 = cbind(matrix(c(parhat[1:totparl]-1.96*(se[1:totparl]),s1_l,s2_l,r_l,rtheta1_l,rtheta2_l),ncol=1),
                 matrix(c(parhat[1:totparl]+1.96*(se[1:totparl]),s1_u,s2_u,r_u,rtheta1_u, rtheta2_u), ncol=1))
-    
-  # Model with estimated V but assuming independence
-
-  parhatGI = c(parhat1,as.vector(gamma1),as.vector(gamma2))
-    
-  HgammaI = hessian(LikIGamma2,parhatGI,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,discrete=0,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
   
-  HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
-  HIInd = ginv(HInd)
+  if (!only_2step_model) {
+    # Model with no V --> remove data for v from data matrix
+    ME = M[,-((ncol(M)-1):ncol(M))]
     
-  VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+(2*parlgamma)-1)]
+    # Remove coefficients for v
+    initE = parhat1[-parl]
+    initE = initE[-(parl-1)]
+    initE = initE[-(2*parl-2)]
+    initE = initE[-(2*parl-3)]
+    
+    # Append theta's to initE and replace the original theta_1 (now third-to-last
+    # element) with the initial value for rho.
+    initE = c(initE[-length(initE)],initE[length(initE)-1],initE[length(initE)])
+    initE[length(initE) - 2] <- 0
+    
+    # Again we make sure to properly adapt the upper -and lower bound values of
+    # theta.
+    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=ME,lb=c(rep(-Inf,(totparl-4)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-4)),Inf,Inf,0.99,2,2),
+                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+    
+    H1 = hessian(LikF,parhatE,Y=Y,Delta=Delta,Xi=Xi,M=ME,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    H1I = ginv(H1)
+    se1 = sqrt(abs(diag(H1I)));
+    
+    # Delta method variance (makes sure no negative values in CI for variance)
+    # --> Take the log of the estimates, construct CI for the log-estimates and
+    #     backtransform to the original estimates by exponentiating.
+    
+    t_s1 = 1/parhatE[totparl-3]*se1[totparl-3]
+    t_s2 = 1/parhatE[totparl-2]*se1[totparl-2]
+    
+    # Conf. interval for transf. sigma's
+    
+    ms1_l = log(parhatE[totparl-3])-1.96*t_s1 ;  ms1_u = log(parhatE[totparl-3])+1.96*t_s1 
+    ms2_l = log(parhatE[totparl-2])-1.96*t_s2 ;  ms2_u = log(parhatE[totparl-2])+1.96*t_s2 
+    
+    # Back transform
+    
+    S1_l = exp(ms1_l); S1_u = exp(ms1_u); S2_l = exp(ms2_l); S2_u = exp(ms2_u) 
+    
+    # Confidence interval for rho
+    
+    z1t = 0.5*(log((1+parhatE[totparl-1])/(1-parhatE[totparl-1])))     # Fisher's z transform
+    se1_z = (1/(1-parhatE[totparl-1]^2))*se1[totparl-1]
+    z1t_l = z1t-1.96*(se1_z)
+    z1t_u = z1t+1.96*(se1_z)
+    
+    
+    # Back transform
+    
+    r1_l = (exp(2*z1t_l)-1)/(exp(2*z1t_l)+1)      
+    r1_u = (exp(2*z1t_u)-1)/(exp(2*z1t_u)+1)
+    
+    # Confidence interval for theta
+    
+    r1theta1_l <- parhatE[length(parhatE)-1] - 1.96 * se1[length(parhatE)-1]
+    r1theta1_u <- parhatE[length(parhatE)-1] + 1.96 * se1[length(parhatE)-1]
+    r1theta2_l <- parhatE[length(parhatE)] - 1.96 * se1[length(parhatE)]
+    r1theta2_u <- parhatE[length(parhatE)] + 1.96 * se1[length(parhatE)]
+    
+    # Matrix of all the confidence intervals
+    EC2 = cbind(matrix(c(parhatE[1:(totparl-4)]-1.96*(se1)[1:(totparl-4)],S1_l,S2_l,r1_l, r1theta1_l, r1theta2_l),ncol=1),
+                matrix(c(parhatE[1:(totparl-4)]+1.96*(se1)[1:(totparl-4)],S1_u,S2_u,r1_u, r1theta1_u, r1theta2_u),ncol=1)) 
+    
+    # Model with estimated V but assuming independence
+    
+    parhatGI = c(parhat1,as.vector(gamma1),as.vector(gamma2))
+    
+    HgammaI = hessian(LikIGamma2,parhatGI,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,discrete=0,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+    
+    HInd = HgammaI[1:(length(initd)-1),1:(length(initd)-1)]
+    HIInd = ginv(HInd)
+    
+    VargammaI = HgammaI[1:(length(initd)-1),(length(initd)):(length(initd)+(2*parlgamma)-1)]
     
     
     
-  Epartvar2I = 0
+    Epartvar2I = 0
     
-  for (i in 1:n){
+    for (i in 1:n){
       # h_m matrix
       p1 <- exp(XandW[i,]%*%gamma1)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
       p2 <- exp(XandW[i,]%*%gamma2)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
@@ -1480,38 +1480,36 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
       partvarI = t(J1I) + VargammaI%*%psii
       Epartvar2I = Epartvar2I+(partvarI%*%t(partvarI))
       
-  }
+    }
     
-  totvarexI = HIInd%*%Epartvar2I%*%t(HIInd)
+    totvarexI = HIInd%*%Epartvar2I%*%t(HIInd)
     
-  seI = sqrt(abs(diag(totvarexI)))
+    seI = sqrt(abs(diag(totvarexI)))
     
-  # Delta method variance
+    # Delta method variance
     
-  se_s1I = 1/parhat1[totparl+1]*seI[totparl+1]
-  se_s2I = 1/parhat1[totparl+2]*seI[totparl+2]
+    se_s1I = 1/parhat1[totparl+1]*seI[totparl+1]
+    se_s2I = 1/parhat1[totparl+2]*seI[totparl+2]
     
-  # Conf. interval for transf. sigma's
+    # Conf. interval for transf. sigma's
     
-  st1_lI = log(parhat1[totparl+1])-1.96*se_s1I ;  st1_uI = log(parhat1[totparl+1])+1.96*se_s1I  
-  st2_lI = log(parhat1[totparl+2])-1.96*se_s2I ;  st2_uI = log(parhat1[totparl+2])+1.96*se_s2I 
+    st1_lI = log(parhat1[totparl+1])-1.96*se_s1I ;  st1_uI = log(parhat1[totparl+1])+1.96*se_s1I  
+    st2_lI = log(parhat1[totparl+2])-1.96*se_s2I ;  st2_uI = log(parhat1[totparl+2])+1.96*se_s2I 
     
-  # Back transform
+    # Back transform
     
-  s1_lI = exp(st1_lI); s1_uI = exp(st1_uI); s2_lI = exp(st2_lI); s2_uI = exp(st2_uI)
+    s1_lI = exp(st1_lI); s1_uI = exp(st1_uI); s2_lI = exp(st2_lI); s2_uI = exp(st2_uI)
     
-  # Confidence interval for theta
+    # Confidence interval for theta
     
-  rItheta1_l <- parhat1[length(parhat1)-1] - 1.96 * seI[length(parhat1)-1]
-  rItheta1_u <- parhat1[length(parhat1)-1] + 1.96 * seI[length(parhat1)-1]
-  rItheta2_l <- parhat1[length(parhat1)] - 1.96 * seI[length(parhat1)]
-  rItheta2_u <- parhat1[length(parhat1)] + 1.96 * seI[length(parhat1)]
+    rItheta1_l <- parhat1[length(parhat1)-1] - 1.96 * seI[length(parhat1)-1]
+    rItheta1_u <- parhat1[length(parhat1)-1] + 1.96 * seI[length(parhat1)-1]
+    rItheta2_l <- parhat1[length(parhat1)] - 1.96 * seI[length(parhat1)]
+    rItheta2_u <- parhat1[length(parhat1)] + 1.96 * seI[length(parhat1)]
     
-  EC4 = cbind(matrix(c(parhat1[1:totparl]-1.96*(seI[1:totparl]),s1_lI,s2_lI,rItheta1_l, rItheta2_l),ncol=1),
+    EC4 = cbind(matrix(c(parhat1[1:totparl]-1.96*(seI[1:totparl]),s1_lI,s2_lI,rItheta1_l, rItheta2_l),ncol=1),
                 matrix(c(parhat1[1:totparl]+1.96*(seI[1:totparl]),s1_uI,s2_uI,rItheta1_u, rItheta2_u), ncol=1))
-
-
-  
+  }
   
   
   # Results of model assuming confounding and dependence between T and C.
@@ -1528,39 +1526,41 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   summary <- summary[,c(1:3, 6, 4:5)]
   summary
   
-  # Results of naive model
-  pvalue.naive <- 2*pmin((1-pnorm(parhatE/se1)),pnorm(parhatE/se1))
-  significant.naive <- ifelse(pvalue.naive < 0.10,
-                              ifelse(pvalue.naive < 0.05,
-                                     ifelse(pvalue.naive < 0.01, "**", "*"),"."), "")
-  results.naive <- cbind(parhatE, se1, pvalue.naive, EC2)
-  colnames(results.naive) <- c("Estimate", "St.Dev.", "pvalue", "CI.lb", "CI.ub")
-  
-  namescoefr=namescoef[-(parl)]
-  namescoefr=namescoefr[-(parl-1)]
-  namescoefr=namescoefr[-(2*parl-2)]
-  namescoefr=namescoefr[-(2*parl-3)]
-  
-  rownames(results.naive) <- namescoefr
-  
-  summary1 <- data.frame(round(results.naive, 4))
-  summary1$sign <- significant.naive
-  summary1 <- summary1[,c(1:3, 6, 4:5)]
-  summary1
-  
-  # Results of independence model
-  pvalue.indep <- 2*pmin((1-pnorm(parhat1/seI)),pnorm(parhat1/seI))
-  significant.indep <- ifelse(pvalue.indep < 0.10,
-                              ifelse(pvalue.indep < 0.05,
-                                     ifelse(pvalue.indep < 0.01, "**", "*"),"."), "")
-  results.indep <- cbind(parhat1, seI, pvalue.indep, EC4)
-  colnames(results.indep) <- c("Estimate", "St.Dev.", "pvalue", "CI.lb", "CI.ub")
-  rownames(results.indep) <- namescoef[-(length(namescoef) - 2)]
-  
-  summary2 <- data.frame(round(results.indep, 4))
-  summary2$sign <- significant.indep
-  summary2 <- summary2[,c(1:3, 6, 4:5)]
-  summary2
+  if (!only_2step_model){
+    # Results of naive model
+    pvalue.naive <- 2*pmin((1-pnorm(parhatE/se1)),pnorm(parhatE/se1))
+    significant.naive <- ifelse(pvalue.naive < 0.10,
+                                ifelse(pvalue.naive < 0.05,
+                                       ifelse(pvalue.naive < 0.01, "**", "*"),"."), "")
+    results.naive <- cbind(parhatE, se1, pvalue.naive, EC2)
+    colnames(results.naive) <- c("Estimate", "St.Dev.", "pvalue", "CI.lb", "CI.ub")
+    
+    namescoefr=namescoef[-(parl)]
+    namescoefr=namescoefr[-(parl-1)]
+    namescoefr=namescoefr[-(2*parl-2)]
+    namescoefr=namescoefr[-(2*parl-3)]
+    
+    rownames(results.naive) <- namescoefr
+    
+    summary1 <- data.frame(round(results.naive, 4))
+    summary1$sign <- significant.naive
+    summary1 <- summary1[,c(1:3, 6, 4:5)]
+    summary1
+    
+    # Results of independence model
+    pvalue.indep <- 2*pmin((1-pnorm(parhat1/seI)),pnorm(parhat1/seI))
+    significant.indep <- ifelse(pvalue.indep < 0.10,
+                                ifelse(pvalue.indep < 0.05,
+                                       ifelse(pvalue.indep < 0.01, "**", "*"),"."), "")
+    results.indep <- cbind(parhat1, seI, pvalue.indep, EC4)
+    colnames(results.indep) <- c("Estimate", "St.Dev.", "pvalue", "CI.lb", "CI.ub")
+    rownames(results.indep) <- namescoef[-(length(namescoef) - 2)]
+    
+    summary2 <- data.frame(round(results.indep, 4))
+    summary2$sign <- significant.indep
+    summary2 <- summary2[,c(1:3, 6, 4:5)]
+    summary2
+  }
   
   ## Create LaTeX tables of results
   xtab = xtable(summary, digits = 3)
@@ -1572,23 +1572,220 @@ DataApplicationChess.multipleEV = function(data,init.value.theta_1, init.value.t
   
   # print.xtable(xtab,file=paste0("Results_2-step_Estimation_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
+  if (!only_2step_model) {
+    xtab = xtable(summary1, digits = 3)
+    header= c("sample size",n,"Results naive model with YT-transformation multiple EV")
+    addtorow = list()
+    addtorow$pos = list(-1)
+    addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+    print(xtab, add.to.row=addtorow, include.colnames=TRUE)
+    
+    # print.xtable(xtab,file=paste0("Results_naive_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
+    
+    
+    xtab = xtable(summary2, digits = 3)
+    header= c("sample size",n,"Results independence model with YT-transformation multiple EV")
+    addtorow = list()
+    addtorow$pos = list(-1)
+    addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
+    print(xtab, add.to.row=addtorow, include.colnames=TRUE)
+  }
   
-  xtab = xtable(summary1, digits = 3)
-  header= c("sample size",n,"Results naive model with YT-transformation multiple EV")
+  return(list(parhat,gamma1,gamma2))
+}
+
+DataApplicationChess.multipleEV.multipleIV = function(data,init.value.theta_1,
+                                                      init.value.theta_2,
+                                                      parl,
+                                                      totparl,
+                                                      parlgamma,
+                                                      namescoef) {
+  
+  
+  n = nrow(data)
+  Y = data[,1]
+  Delta = data[,2]
+  Xi = data[,3]
+  intercept <- data[,4]
+  X = data[,(5:(parl-1))]
+  Z1 = ifelse(data[,parl]==2,1,0) # Z = 1 is the reference level.
+  Z2 = ifelse(data[,parl]==3,1,0)
+  Z = cbind(Z1,Z2)
+  W1 = data[,parl + 1]
+  W2 = data[,parl + 2]
+  W = cbind(W1, W2)
+  XandW = cbind(intercept,X,W)
+
+  end_var_class <- relevel(as.factor(data[,parl]), ref = 1)
+  gammaest <- summary(multinom(end_var_class ~ -1 + XandW, ref = 1, trace = FALSE))$coefficients
+  gammaest <- c(gammaest[1,], gammaest[2,])
+  
+  gamma1 <- gammaest[1:parlgamma]  
+  gamma2 <- gammaest[(parlgamma+1):(2*parlgamma)]
+  
+  a = XandW%*%(gamma1-gamma2)
+  b = XandW%*%gamma1
+  c = XandW%*%gamma2
+  
+  E1.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(a/(1+exp(-a)+exp(-b))-1/(1+exp(-b))*log(1+exp(a)*(1+exp(-b))))
+  E2.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2)*(1+exp(-c)))*(-a/(exp(-a)+exp(-a-c)+1)+log(exp(a)+exp(-c)+1))
+  E3.nu1 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))*(1/(1+exp(c))*(-c-(b-c)/(exp(-b)+exp(c-b)+1)+log(1+exp(c)+exp(b)))-log(1+exp(-c)+exp(b-c))+log(1+exp(b-c)+exp(-c))/(1+exp(-b)))
+  
+  E1.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma1))*(b/(1+exp(-a)+exp(-b))-1/(1+exp(-a))*log(1+exp(b)*(1+exp(-a))))
+  E2.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(exp(XandW%*%gamma2))*(1/(1+exp(-c))*(c-(a+c)/(exp(-a)+exp(-c-a)+1)+log(1+exp(-c)+exp(a)))-log(1+exp(c)+exp(a+c))+log(1+exp(a+c)+exp(c))/(1+exp(-a)))
+  E3.nu2 = (1+exp(XandW%*%gamma1)+exp(XandW%*%gamma2))/(1+exp(c))*(-b/(exp(-b)+exp(-b+c)+1)+log(exp(b)+exp(c)+1))
+  
+  
+  V1 = Z1*E1.nu1+Z2*E2.nu1+(1-Z1-Z2)*E3.nu1
+  V2 = Z1*E1.nu2+Z2*E2.nu2+(1-Z1-Z2)*E3.nu2
+  
+  MnoV = cbind(intercept,X,Z,W)
+  
+  # Estimated V
+  M = cbind(intercept,X,Z,V1,V2)
+
+  # Assign starting values:
+  # - beta = zero-vector
+  # - eta = zero-vector
+  # - sigma1 = 1
+  # - sigma2 = 1 
+  # - theta_1 = init.value.theta_1
+  # - theta_2 = init.value.theta_2
+  init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
+  
+  # Independent model for starting values sigma and theta.
+  #
+  # Note the difference with the version of Gilles: the likelihood function now
+  # takes an extra argument (= theta), so the vector of initial values needs
+  # to take this into account. Also the vectors for the lower -and upper bound
+  # of the parameters ('lb' and 'ub') should take this into account. Note that
+  # theta is a value between 0 and 2.
+  parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
+                   eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+
+  # Model with estimated V
+  
+  # Using the pre-estimated initial values
+  
+  initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
+  initd[length(initd) - 2] <- 0
+  
+  # Again we make sure to properly adapt the upper -and lower bound values of
+  # theta.
+  parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
+                  eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
+  
+  parhatG = c(parhat,as.vector(gamma1),as.vector(gamma2))
+  
+  Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,discrete=1,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
+  
+  
+  # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta
+  # (i.e. H_delta).
+  H = Hgamma[1:length(initd),1:length(initd)]
+  HI = ginv(H)
+  
+  Vargamma = Hgamma[1:length(initd),(length(initd)+1):(length(initd)+2*parlgamma)]
+  
+  #-M matrix 
+  WM <- matrix(rep(0,(parlgamma*2)^2),nrow=parlgamma*2)
+  for (i in 1:n){
+    p1 <- exp(XandW[i,]%*%gamma1)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+    p2 <- exp(XandW[i,]%*%gamma2)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+    matrix <- matrix(c(p1*(1-p1),-p1*p2, -p1*p2, p2*(1-p2)),ncol=2)
+    xx <- XandW[i,]%*%t(XandW[i,])
+    WM <- WM+kronecker(matrix,xx)
+  }
+  
+  MI = ginv(WM)
+  
+  Epartvar2 = 0
+  
+  for (i in 1:n){
+    # h_m matrix
+    p1 <- exp(XandW[i,]%*%gamma1)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+    p2 <- exp(XandW[i,]%*%gamma2)/(1+exp(XandW[i,]%*%gamma1)+exp(XandW[i,]%*%gamma2))
+    Zp <- c(Z1[i]-p1, Z2[i]-p2)
+    h_mi <- kronecker(Zp,XandW[i,])
+    
+    # psi matrix
+    psii = MI%*%h_mi
+    
+    # h_l matrix
+    J1 = jacobian(LikF,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
+    
+    partvar = t(J1) + Vargamma%*%psii
+    Epartvar2 = Epartvar2+(partvar%*%t(partvar))
+    
+  }
+  
+  
+  
+  totvarex = HI%*%Epartvar2%*%t(HI)
+  
+  se = sqrt(abs(diag(totvarex)))
+  
+  # Delta method variance
+  
+  se_s1 = 1/parhat[totparl+1]*se[totparl+1]
+  se_s2 = 1/parhat[totparl+2]*se[totparl+2]
+  
+  # Conf. interval for transf. sigma's
+  
+  st1_l = log(parhat[totparl+1])-1.96*se_s1 ;  st1_u = log(parhat[totparl+1])+1.96*se_s1  
+  st2_l = log(parhat[totparl+2])-1.96*se_s2 ;  st2_u = log(parhat[totparl+2])+1.96*se_s2 
+  
+  # Back transform
+  
+  s1_l = exp(st1_l); s1_u = exp(st1_u); s2_l = exp(st2_l); s2_u = exp(st2_u) 
+  
+  # Confidence interval for rho
+  
+  zt = 0.5*(log((1+parhat[totparl+3])/(1-parhat[totparl+3])))     # Fisher's z transform
+  se_z = (1/(1-parhat[totparl+3]^2))*se[totparl+3]
+  zt_l = zt-1.96*(se_z)
+  zt_u = zt+1.96*(se_z)
+  
+  # Back transform
+  
+  r_l = (exp(2*zt_l)-1)/(exp(2*zt_l)+1)      
+  r_u = (exp(2*zt_u)-1)/(exp(2*zt_u)+1)
+  
+  # Confidence interval for theta
+  
+  rtheta1_l <- parhat[length(parhat)-1] - 1.96 * se[length(parhat)-1]
+  rtheta1_u <- parhat[length(parhat)-1] + 1.96 * se[length(parhat)-1]
+  rtheta2_l <- parhat[length(parhat)] - 1.96 * se[length(parhat)]
+  rtheta2_u <- parhat[length(parhat)] + 1.96 * se[length(parhat)]
+  
+  # Matrix with all confidence intervals
+  EC1 = cbind(matrix(c(parhat[1:totparl]-1.96*(se[1:totparl]),s1_l,s2_l,r_l,rtheta1_l,rtheta2_l),ncol=1),
+              matrix(c(parhat[1:totparl]+1.96*(se[1:totparl]),s1_u,s2_u,r_u,rtheta1_u, rtheta2_u), ncol=1))
+  
+  
+  # Results of model assuming confounding and dependence between T and C.
+  pvalue <- 2*pmin((1-pnorm(parhat/se)),pnorm(parhat/se))
+  significant <- ifelse(pvalue < 0.10,
+                        ifelse(pvalue < 0.05,
+                               ifelse(pvalue < 0.01, "**", "*"),"."), "")
+  results.confound_dep <- cbind(parhat, se, pvalue, EC1)
+  colnames(results.confound_dep) <- c("Estimate", "St.Dev.", "p", "CI.lb", "CI.ub")
+  rownames(results.confound_dep) <- namescoef
+  
+  summary <- data.frame(round(results.confound_dep, 4))
+  summary$sign <- significant
+  summary <- summary[,c(1:3, 6, 4:5)]
+  summary
+  
+  
+  ## Create LaTeX tables of results
+  xtab = xtable(summary, digits = 3)
+  header= c("sample size",n,"Results 2-step_Estimation with YT-transformation multiple EV")
   addtorow = list()
   addtorow$pos = list(-1)
   addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
   print(xtab, add.to.row=addtorow, include.colnames=TRUE)
   
-  # print.xtable(xtab,file=paste0("Results_naive_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
-  
-  
-  xtab = xtable(summary2, digits = 3)
-  header= c("sample size",n,"Results independence model with YT-transformation multiple EV")
-  addtorow = list()
-  addtorow$pos = list(-1)
-  addtorow$command = paste0(paste0('& \\multicolumn{1}{c}{', header, '}', collapse=''), '\\\\')
-  print(xtab, add.to.row=addtorow, include.colnames=TRUE)
-  
+  # print.xtable(xtab,file=paste0("Results_2-step_Estimation_YT",".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   return(list(parhat,gamma1,gamma2))
 }

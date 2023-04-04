@@ -35,10 +35,13 @@ plot(log(chess[chess$delta == 1,]$time), rep(1.05, sum(chess$delta == 1)),
      xlim=c(0,12))
 points(log(chess[chess$delta == 0,]$time), rep(1, sum(chess$delta == 0)), col = "red")
 points(log(chess[chess$delta == 2,]$time), rep(0.95, sum(chess$delta == 2)), col = "green")
-
-
-
 # chess <- chess[chess$time < 1500, ]
+
+# Only work with games that took longer than 2 minutes to be sure that we
+# exclude games that were played in the 1+0 format.
+TWO_MINUTES <- 60*2
+chess <- chess[which(chess$time > TWO_MINUTES), ]
+
 n <- nrow(chess)
 
 # time
@@ -131,7 +134,7 @@ hist(chess$opening_cat)
 # Y <- as.matrix(log(chess$time))
 # Delta <- as.matrix(chess$delta)
 
-#################### Multiple EV ###############################################
+#################### Multiple EV: instrument = opponent_exp ####################
 
 source("Functions_multipleEV.r")
 
@@ -182,7 +185,52 @@ init.value.theta_2 <- 2
 source("Functions_multipleEV.r")
 
 # Takes about 1 minute to run
-parhat_full <- DataApplicationChess.multipleEV(data, init.value.theta_1, init.value.theta_2)
+parhat_full <- DataApplicationChess.multipleEV(data, init.value.theta_1, init.value.theta_2,
+                                               only_2step_model = TRUE)
+
+#################### Multiple EV: instrument = opponent_exp + poi_is_white #####
+
+namescoef.multipleIV <- namescoef[-c(4, 12)]
+
+X.multipleIV = as.matrix(subset(chess, select = c("intercept", "white_elo", "black_elo")))
+
+# Define some useful variables
+parl.multipleIV <- ncol(X.multipleIV) + 4 # The ones defined above + 2 dummy endogenous + 2 control function
+totparl.multipleIV <- 2*parl.multipleIV
+parlgamma.multipleIV <- ncol(X.multipleIV) + 2 # The ones defined above + 2 instrumental vars
+
+# Create data matrix of confounded variable. Z is the indicator of which opening
+# was played in the game. Z is a multi-level categorical variable. This means
+# that we need more than one dummy variable to represent it. 
+Z.multipleIV = as.matrix(chess$opening_cat)
+
+# Create data matrix of instrumental variable. W is the indicator whether the 
+# participant was in the control or treatment group (0 and 1, respectively).
+W.multipleIV = as.matrix(cbind(chess$opponent_exp, chess$poi_is_white))
+
+# Create data matrix
+XandW.multipleIV = as.matrix(cbind(X.multipleIV, W.multipleIV))
+data.multipleIV = as.matrix(cbind(Y, Delta, Xi, X.multipleIV, Z.multipleIV,
+                                  W.multipleIV))
+
+
+init.value.theta_1 <- 1
+init.value.theta_2 <- 2
+
+#
+# NOTE: check code when estimating gamma: why not just use glm?
+#
+
+source("Functions_multipleEV.r")
+
+# Takes about 1 minute to run
+parhat_full2 <- DataApplicationChess.multipleEV.multipleIV(data.multipleIV,
+                                                           init.value.theta_1,
+                                                           init.value.theta_2,
+                                                           parl.multipleIV,
+                                                           totparl.multipleIV,
+                                                           parlgamma.multipleIV,
+                                                           namescoef.multipleIV)
 
 #################### Stratification#############################################
 

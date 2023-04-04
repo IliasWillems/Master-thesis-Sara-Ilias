@@ -26,7 +26,7 @@ init.value.theta_2=1
 parN = list(beta=c(2.5,2.6,1.8,2),eta=c(1.8,0.9,0.5,-2.2),sd=c(1.1,1.4,0.75,1, 0.5),gamma=c(-1,0.6,2.3))    #45-50% censoring
 parl = length(parN[[1]])
 totparl = 2*parl
-parlgamma = (parl-1)
+parlgamma = parl - 1
 namescoef =  c("beta_{T,0}","beta_{T,1}","alpha_T","lambda_T","beta_{C,0}","beta_{C,1}","alpha_C","lambda_C","sigma_T","sigma_C","rho","theta_1","theta_2")
 
 n <- 1000
@@ -34,7 +34,8 @@ iseed <- 123
 Zbin <- 1
 Wbin <- 1
 B <- 500
-nruns <- 100
+display.plot = TRUE
+
 
 # Generate data and give it representative column names
 data <- dat.sim.reg(n, parN, iseed, Zbin, Wbin)
@@ -46,33 +47,35 @@ colnames(data) <- c("Y", "delta", "xi", "intercept", "x1", "Z", "W", "realV")
 
 # Get an idea of computing time of the full simulation. This function might take
 # a while.
+nruns <- 500
 GOF_EstimateRunDuration(data, B, nruns, Zbin, Wbin, parallel = TRUE)
 
-# Simulate the type-I error of the Goodness-Of-Fit test
-typeIerror_results <- GOF_SimulationTypeIerror(parN, nruns, B, iseed, Zbin, Wbin, parallel = TRUE)
-reject90 <- typeIerror_results[["reject90"]]
-reject95 <- typeIerror_results[["reject95"]]
-write.csv(c(reject90, reject95), file = "typeIerror_iseed123_100runs_B500.csv")
+# Run the simulation for assessing the Type 1 error of the goodness-of-fit test.
+# Each of the 5 parts to be ran will do 100 simulations.
+nbr_parts_to_evaluate <- 5
+nruns_per_part <- nruns/nbr_parts_to_evaluate
 
-typeIerror_results <- GOF_SimulationTypeIerror(parN, nruns, B, iseed + 100, Zbin, Wbin, parallel = TRUE)
-reject90 <- typeIerror_results[["reject90"]]
-reject95 <- typeIerror_results[["reject95"]]
-write.csv(c(reject90, reject95), file = "typeIerror_iseed223_100runs_B500.csv")
-
-typeIerror_results <- GOF_SimulationTypeIerror(parN, nruns, B, iseed + 200, Zbin, Wbin, parallel = TRUE)
-reject90 <- typeIerror_results[["reject90"]]
-reject95 <- typeIerror_results[["reject95"]]
-write.csv(c(reject90, reject95), file = "typeIerror_iseed323_100runs_B500.csv")
-
-typeIerror_results <- GOF_SimulationTypeIerror(parN, nruns, B, iseed + 300, Zbin, Wbin, parallel = TRUE)
-reject90 <- typeIerror_results[["reject90"]]
-reject95 <- typeIerror_results[["reject95"]]
-write.csv(c(reject90, reject95), file = "typeIerror_iseed423_100runs_B500.csv")
-
-typeIerror_results <- GOF_SimulationTypeIerror(parN, nruns, B, iseed + 400, Zbin, Wbin, parallel = TRUE)
-reject90 <- typeIerror_results[["reject90"]]
-reject95 <- typeIerror_results[["reject95"]]
-write.csv(c(reject90, reject95), file = "typeIerror_iseed523_100runs_B500.csv")
+for (part in 1:nbr_parts_to_evaluate) {
+  message("Running part ", part, " out of ", nbr_parts_to_evaluate, ".")
+  message("")
+  
+  typeIerror_results <- GOF_SimulationTypeIerror(parN, nruns_per_part, B, iseed + (part - 1)*100,
+                                                 Zbin, Wbin, parallel = TRUE)
+  reject90 <- typeIerror_results[["reject90"]]
+  reject95 <- typeIerror_results[["reject95"]]
+  
+  filename <- paste0("typeIerror_iseed", iseed + (part - 1)*nruns_per_part, "_",
+                     nruns_per_part, "runs.csv")
+  folder <- paste0("TypeIerror/TypeIerror_B", B, "_n", n)
+  
+  # If folder doesn't exist, create it.
+  if (!file.exists(folder)) {
+    dir.create(folder)
+  }
+  
+  # Write results to disk
+  write.csv(c(reject90, reject95), file = paste0(folder, "/", filename))
+}
 
 # Plot the l'th rejected bootstrap sample together with the bootstrap T_{CM}.
 l <- 3
@@ -81,45 +84,6 @@ hist(typeIerror_results[["TCMb_rejected"]][,l],
      xlab = c(),
      xlim = c(0, max(max(typeIerror_results[["TCMb_rejected"]][l]), typeIerror_results[["TCM_rejected"]][l])))
 abline(v = typeIerror_results[["TCM_rejected"]][l], col = "red")
-
-# Combine results over 500 runs
-first100 <- read.csv("typeIerror_iseed123_100runs.csv")
-second100 <- read.csv("typeIerror_iseed223_100runs.csv")
-third100 <- read.csv("typeIerror_iseed323_100runs.csv")
-last200 <- read.csv("typeIerror_iseed423_200runs.csv")
-
-results <- (first100 + second100 + third100 + 2*last200)[,2]/5
-results <- data.frame(reject90 = results[1], reject95 = results[2])
-results
-
-#
-# New approach
-#
-
-# This fails quite horribly. Based on the intermediate results, there are nearly
-# no rejections on both levels.
-
-n <- 1000
-iseed <- 123
-Zbin <- 1
-Wbin <- 1
-B <- 250
-nruns <- 100
-
-for (part in 1:3) {
-  message("Busy doing part ", part, " out of 5.")
-  message("")
-  typeIerror_newapproach_results <- 
-    GOF_SimulationTypeIerror_newapproach(parN, nruns, B, iseed + (part - 1)*nruns, Zbin, Wbin, parallel = TRUE)
-  reject90 <- typeIerror_newapproach_results[["reject90"]]
-  reject95 <- typeIerror_newapproach_results[["reject95"]]
-  
-  filename <- paste0("typeIerror_newapproach_iseed", iseed + (part - 1)*nruns, "_100runs.csv")
-  
-  write.csv(c(reject90, reject95), file = filename)
-}
-
-
 
 #
 # omega-square distribution approach
@@ -189,11 +153,13 @@ par.heteroscedastic <- list(beta, eta, sd, gamma)
 
 iseed <- 768266
 type <- "heteroscedastic"
-nruns <- 100
+nruns <- 500
 B <- 250
 n <- 1000
 
-for (part in 3:5) {
+nbr_parts_to_evaluate <- 5
+nruns_per_part <- nruns/nbr_parts_to_evaluate
+for (part in 1:nbr_parts_to_evaluate) {
   message("Running part ", part, " out of 5.")
   message("")
   
@@ -205,22 +171,27 @@ for (part in 3:5) {
     par.vector <- par.heteroscedastic
   }
   misspec_results <- 
-    GOF_SimulationMisspecification(type, par.vector, nruns, B, iseed + (part - 1)*100, 
+    GOF_SimulationMisspecification(type, par.vector, nruns_per_part, B, iseed + (part - 1)*nruns_per_part, 
                                    Zbin, Wbin, parallel = TRUE)
   reject90 <- misspec_results[["reject90"]]
   reject95 <- misspec_results[["reject95"]]
   
-  filename <- paste0("misspec_", type, "_iseed", iseed + (part - 1)*100, "_",
-                     nruns, "runs_B", B, ".csv")
+  filename <- paste0("misspec_", type, "_iseed", iseed + (part - 1)*nruns_per_part, "_",
+                     nruns_per_part, "runs_B", B, ".csv")
   
   # put in proper folder
   if (type == "heteroscedastic") {
-    folder <- paste0("Power/Misspec_hs_B", B, "_n", n, "/")
+    folder <- paste0("Power/Misspec_hs_B", B, "_n", n)
   } else {
-    folder <- paste0("Power/Misspec_", type, "_B", B, "_n", n, "/")
+    folder <- paste0("Power/Misspec_", type, "_B", B, "_n", n)
   }
   
-  write.csv(c(reject90, reject95), file = paste0(folder, filename))
+  # If folder doesn't exist, create it.
+  if (!file.exists(folder)) {
+    dir.create(folder)
+  }
+  
+  write.csv(c(reject90, reject95), file = paste0(folder, "/", filename))
   
 }
 
@@ -272,9 +243,14 @@ for (part in 1:1) {
                      nruns, "runs_B", B, ".csv")
   
   # put in proper folder
-  folder <- paste0("Power/Misspec_", control_function, "_B", B, "_n", n, "/")
+  folder <- paste0("Power/Misspec_", control_function, "_B", B, "_n", n)
   
-  write.csv(c(reject90, reject95), file = paste0(folder, filename))
+  # If folder doesn't exist, create it.
+  if (!file.exists(folder)) {
+    dir.create(folder)
+  }
+  
+  write.csv(c(reject90, reject95), file = paste0(folder, "/", filename))
   
 }
 
