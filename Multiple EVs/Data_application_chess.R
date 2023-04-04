@@ -105,8 +105,8 @@ q66_idx <- min(which(opening_count_df$cprop > 0.66))
 
 # Option 1
 chess$opening_cat <- ifelse(chess$opening=="1. e4 e5 2. Nf3 Nf6 3. Nxe5 Nc6 " |
-                        grepl("1. e4 c6 2. d4 d5", chess$opening, fixed=TRUE)==TRUE,1,
-                      ifelse(grepl("1. e4", chess$opening, fixed=TRUE)==TRUE,2,3))
+                              grepl("1. e4 c6 2. d4 d5", chess$opening, fixed=TRUE)==TRUE,1,
+                            ifelse(grepl("1. e4", chess$opening, fixed=TRUE)==TRUE,2,3))
 
 # Option 2
 chess$opening_cat <- rep(0, nrow(chess))
@@ -343,7 +343,7 @@ V22 = Zobs.3[1]*E1.nu2+Zobs.3[2]*E2.nu2+(1-Zobs.3[1]-Zobs.3[2])*E3.nu2
 
 # Final vectors of covariates
 dd.1  <- c(dd[-length(dd)],Zobs.2,V11,V21) #X,Z,V
-dd.2  <- c(dd[-length(dd)],Zobs.3,V11,V22) #X,Z,V
+dd.2  <- c(dd[-length(dd)],Zobs.3,V12,V22) #X,Z,V
 
 Time <- 1:10000
 
@@ -356,6 +356,7 @@ for (i in 1:length(Time)) {
 }
 
 print(paste("Multiple EV: ",exp(IYJtrans(qnorm(0.5)*s+t(par[1:length(dd.1)]) %*% dd.1,theta))))
+print(paste("Multiple EV: ",exp(IYJtrans(qnorm(0.5)*s+t(par[1:length(dd.1)]) %*% dd.2,theta))))
 
 
 
@@ -387,7 +388,8 @@ for (i in 1:length(Time)) {
   S2[i] = 1 - pnorm(sd2)
 }
 
-print(paste("Stratified: ",exp(IYJtrans(qnorm(0.5)*s2+t(parhat1[1:length(dd.1)]) %*% dd.1,theta1))))
+print(paste("Stratified: ",exp(IYJtrans(qnorm(0.5)*s1+t(parhat1[1:length(dd.1)]) %*% dd.1,theta1))))
+print(paste("Stratified: ",exp(IYJtrans(qnorm(0.5)*s2+t(parhat2[1:length(dd.1)]) %*% dd.2,theta2))))
 
 
 plot(Time,S1_full, type = 's', col = 1, ylab="Probability", main="Time until checkmate")
@@ -400,4 +402,3 @@ plot(Time,S2_full, type = 's', col = 1, ylab="Probability", main="Time until che
 lines(Time,S2, type = 's', col = 2)
 legend(x = 7000, y = 0.85, c("Multiple EV", "Stratified"),
        col = c(1, 2), lty = 1)
-
