@@ -443,8 +443,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.C2E.11 = c()
   results.C1R.11 = c()
   results.C2R.11 = c()
-  results.C1C.11 <-c()
-  results.C2C.11<-c()
+  results.C1C.11 = c()
+  results.C2C.11 = c()
   
   results.C1.10 = c()
   results.C2.10 = c()
@@ -454,8 +454,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.C2E.10 = c()
   results.C1R.10 = c()
   results.C2R.10 = c()
-  results.C1C.10<-c()
-  results.C2C.10<-c()
+  results.C1C.10 = c()
+  results.C2C.10 = c()
   
   results.C1.01 = c()
   results.C2.01 = c()
@@ -465,8 +465,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.C2E.01 = c()
   results.C1R.01 = c()
   results.C2R.01 = c()
-  results.C1C.01<-c()
-  results.C2C.01<-c()
+  results.C1C.01 = c()
+  results.C2C.01 = c()
   
   results.C1.00 = c()
   results.C2.00 = c()
@@ -476,8 +476,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.C2E.00 = c()
   results.C1R.00 = c()
   results.C2R.00 = c()
-  results.C1C.00<-c()
-  results.C2C.00<-c()
+  results.C1C.00 = c()
+  results.C2C.00 = c()
   
   
   for (i in 1:nsim) {
