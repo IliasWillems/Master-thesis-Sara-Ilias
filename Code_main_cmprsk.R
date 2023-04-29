@@ -44,7 +44,7 @@ results.RMSE = results[[2]]
 
 par(mfrow=c(2,2))
 #C1-Z1-W1
-plot(c(0,results.mean[1,]),c(0,results.mean[2,]),type="l", lty=1, main=expression(paste(C1-Z1-tilde(W),1)), xlab="Time",ylab="Probability",xlim=c(0,30), ylim=c(0,0.5)) # two-step model
+plot(c(0,results.mean[1,]),c(0,results.mean[2,]),type="l", lty=1, main=expression(paste(C1-Z1-tilde(W),1)), xlab="Time",ylab="Probability",xlim=c(0,30), ylim=c(0,0.35)) # two-step model
 lines(c(0,results.mean[1,]),c(0,results.mean[10,]), lty=5,type="l") # nonparametric
 lines(c(0,results.mean[1,]),c(0,results.mean[6,]), lty=4,type="l", col="azure4") # naive
 lines(c(0,results.mean[1,]),c(0,results.mean[8,]), lty=1,type="l", col="red") # true
@@ -109,8 +109,8 @@ grid.lower.bound <- 1
 grid.upper.bound1 <- 30
 grid.upper.bound2 <- 100
 
-number.of.grid.cells1 <- (grid.upper.bound1-grid.lower.bound)*2+1
-number.of.grid.cells2 <- (grid.upper.bound2-grid.lower.bound)*2+1
+number.of.grid.cells1 <- (grid.upper.bound1-grid.lower.bound)*2
+number.of.grid.cells2 <- (grid.upper.bound2-grid.lower.bound)*2
 cell.width <- 0.5
 
 # Approximate the integrals for Z=1, W=1 
