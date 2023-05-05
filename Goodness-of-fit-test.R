@@ -1,9 +1,9 @@
 ################################################################################
-# This file should eventually be merged with the Code_main_ad.R and            #
+# This file should/could eventually be merged with the Code_main_ad.R and      #
 # Functions_ad.R scripts.                                                      #
 ################################################################################
 
-rm(list = ls()) # Remove this line later!
+rm(list = ls())
 
 library(MASS)
 library(nloptr)
@@ -16,6 +16,7 @@ library(survival)
 library(foreach)
 library(doParallel)
 library(expint)
+library(fMultivar)
 
 source("Functions_ad.R")
 source("Goodness-of-fit-test_functions.R")
@@ -33,7 +34,7 @@ n <- 1000
 iseed <- 123
 Zbin <- 1
 Wbin <- 1
-B <- 500
+B <- 250
 display.plot = TRUE
 
 
@@ -41,9 +42,9 @@ display.plot = TRUE
 data <- dat.sim.reg(n, parN, iseed, Zbin, Wbin)
 colnames(data) <- c("Y", "delta", "xi", "intercept", "x1", "Z", "W", "realV")
 
-#
-# Parametric bootstrap approach
-#
+################################################################################
+#                    GOF test based parametric bootstrap                       #
+################################################################################
 
 # Get an idea of computing time of the full simulation. This function might take
 # a while.
@@ -60,7 +61,8 @@ for (part in 1:nbr_parts_to_evaluate) {
   message("")
   
   typeIerror_results <- GOF_SimulationTypeIerror(parN, nruns_per_part, B, iseed + (part - 1)*100,
-                                                 Zbin, Wbin, parallel = TRUE)
+                                                 Zbin, Wbin, parallel = TRUE,
+                                                 save.bootstrap.distributions = TRUE)
   reject90 <- typeIerror_results[["reject90"]]
   reject95 <- typeIerror_results[["reject95"]]
   
@@ -75,6 +77,7 @@ for (part in 1:nbr_parts_to_evaluate) {
   
   # Write results to disk
   write.csv(c(reject90, reject95), file = paste0(folder, "/", filename))
+
 }
 
 # Plot the l'th rejected bootstrap sample together with the bootstrap T_{CM}.
@@ -85,22 +88,81 @@ hist(typeIerror_results[["TCMb_rejected"]][,l],
      xlim = c(0, max(max(typeIerror_results[["TCMb_rejected"]][l]), typeIerror_results[["TCM_rejected"]][l])))
 abline(v = typeIerror_results[["TCM_rejected"]][l], col = "red")
 
-#
-# omega-square distribution approach
+
+################################################################################
+#             GOF test based on the limiting distribution of T_CM              #
+################################################################################
+
+# 
+# Type-I error of test without bootstrap
 #
 
-# Get an idea of computing time of the full simulation without using bootstrap
-# but comparing the statistic to the omega-square distribution instead.
-GOF_noBootstrap_EstimateRunDuration(data, nruns, Zbin, Wbin)
+n <- 1000
+iseed <- 5656
+Zbin <- 1
+Wbin <- 1
+k_range_size <- 100
+ltcm_estimation_size <- 5000
+display.plot <- TRUE
+nruns <- 10
 
-# Simulate the type-I error of the Goodness-Of-Fit test which compares the
-# obtained statistic to the omega-squared distribution.
-typeIerror_results_noboot <- GOF_SimulationNoBootstrap_typeIerror(parN, nruns, iseed, Zbin, Wbin)
-typeIerror_results_noboot[["reject90"]]
-typeIerror_results_noboot[["reject95"]]
-  # Using n = 1000, iseed = 123, B = 30 and nruns = 100, we obtain
-  # reject90 = 0
-  # reject95 = 0
+# Estimate duration of simulation
+data <- dat.sim.reg(n, parN, iseed, Zbin, Wbin)
+colnames(data) <- c("Y", "delta", "xi", "intercept", "x1", "Z", "W", "realV")
+
+clust <- makeCluster(10)
+registerDoParallel(clust)
+
+GOF_test_noBootstrap(data, Zbin, Wbin, k_range_size, ltcm_estimation_size,
+                     display.plot = TRUE)
+
+GOF_noBootstrap_EstimateRunDuration(data, nruns, Zbin, Wbin, k_range_size, ltcm_estimation_size)
+
+# Run simulation
+source("Goodness-of-fit-test_functions.R")
+GOF_SimulationNoBootstrap_typeIerror(parN, nruns, iseed, Zbin, Wbin, display.plot)
+
+stopCluster(clust)
+
+#
+# 'Quick and dirty' comparison of both methods
+#
+
+iseed <- 124
+k_range_size <- 100
+ltcm_estimation_size <- 1000
+display.plot <- TRUE
+
+# Regenerate the data set and compute the quantiles based on asymptotic theory.
+data <- dat.sim.reg(n, parN, iseed, Zbin, Wbin)
+colnames(data) <- c("Y", "delta", "xi", "intercept", "x1", "Z", "W", "realV")
+out <- GOF_test_noBootstrap(data, Zbin, Wbin, k_range_size, ltcm_estimation_size, 
+                            display.plot)
+q90.as <- out[[4]]
+q95.as <- out[[5]]
+
+# Load the data set of bootstrapped T_CM and compute bootstrap quantiles
+filename <- paste0(iseed, ".csv")
+folder <- paste0("TypeIerror/BootstrapTCM_B", B, "_n", n)
+bootstrap_tcm <- read.csv(paste0(folder, "/", filename))[,2]
+q90.bs <- quantile(bootstrap_tcm, 0.90)
+q95.bs <- quantile(bootstrap_tcm, 0.95)
+
+comparison <- data.frame("q90 asymptotic" = q90.as, "q90 bootstrap" = q90.bs,
+                         "q95 asymptotic" = q95.as, "q95 bootstrap" = q95.bs)
+rownames(comparison) <- c("")
+round(comparison, 3)
+
+# Plot distributions and TCM
+TCM <- out[[1]]
+LTCM_distribution <- out[[2]]
+
+par(mfrow = c(1, 2))
+hist(bootstrap_tcm)
+lines(abline(v = TCM, col = 'red'))
+hist(LTCM_distribution)
+lines(abline(v = TCM, col = 'red'))
+
 
 ################################################################################
 #      GOF test for misspecified models: misspecified error distribution       #
@@ -216,15 +278,16 @@ namescoef =  c("$\\beta_{T,0}$","$\\beta_{T,1}$","$\\alpha_T$","$\\lambda_T$",
                "$\\sigma_T$","$\\sigma_C$","$\\rho$","$\\theta_1$","$\\theta_2$")
 
 iseed <- 768266
-control_function <- "cloglog"
-nruns <- 10
+control_function <- "probit"
+nruns <- 500
 Zbin <- 2
 Wbin <- 1
 B <- 250
-n <- 1000
+n <- 2000
 
-
-for (part in 1:1) {
+nbr_parts_to_evaluate <- 5
+nruns_per_part <- nruns/nbr_parts_to_evaluate
+for (part in 3:nbr_parts_to_evaluate) {
   message("Running part ", part, " out of 5.")
   message("")
   
@@ -234,13 +297,13 @@ for (part in 1:1) {
     stop("invalid control function specified")
   }
   misspec_results <- 
-    GOF_SimulationMisspecification(control_function, par.vector, nruns, B, iseed + (part - 1)*100, 
+    GOF_SimulationMisspecification(control_function, par.vector, nruns_per_part, B, iseed + (part - 1)*nruns_per_part, 
                                    Zbin, Wbin, parallel = TRUE)
   reject90 <- misspec_results[["reject90"]]
   reject95 <- misspec_results[["reject95"]]
   
-  filename <- paste0("misspec_", control_function, "_iseed", iseed + (part - 1)*100, "_",
-                     nruns, "runs_B", B, ".csv")
+  filename <- paste0("misspec_", control_function, "_iseed", iseed + (part - 1)*nruns_per_part, "_",
+                     nruns_per_part, "runs_B", B, ".csv")
   
   # put in proper folder
   folder <- paste0("Power/Misspec_", control_function, "_B", B, "_n", n)
