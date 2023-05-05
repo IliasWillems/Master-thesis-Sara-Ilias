@@ -1,3 +1,6 @@
+
+################# Yeo-Johnson transformation functions #########################
+
 log_transform = function(y)   
 { 
   transform_y = (y>0)*y+(y<=0)*1 # sy>0 --> condition is a check
@@ -35,6 +38,10 @@ DYJtrans = function(y,theta) # Derivative of Yeo-Johnson transformation
   return(temp) 
 } 
 
+
+######################## Integrals CIF calculation #############################
+
+# competing risk 1
 integral1 <- function(x, theta1, theta2, sigma1, sigma2, rho12,beta1,beta2,M){
   transY.T1=YJtrans(x,theta1)
   DtransY.T1=DYJtrans(x,theta1)
@@ -48,6 +55,7 @@ integral1 <- function(x, theta1, theta2, sigma1, sigma2, rho12,beta1,beta2,M){
   return(f_T1)
 }
 
+# competing risk 2
 integral2 <- function(x, theta1, theta2, sigma1, sigma2, rho12,beta1,beta2,M){
   transY.T1=YJtrans(x,theta1)
   DtransY.T1=DYJtrans(x,theta1)
@@ -97,11 +105,11 @@ dat.sim.reg = function(n,par,iseed,Zbin,Wbin){
   
   XandW=as.matrix(cbind(x0,x1,W)) # W vector
   
-  if (Zbin==2) {  # nu is standard logistic
+  if (Zbin==2) {  # Z is binary
     V=rlogis(n)
     Z = as.matrix(as.numeric(XandW%*%gamma-V>0))
     realV=(1-Z)*((1+exp(XandW%*%gamma))*log(1+exp(XandW%*%gamma))-(XandW%*%gamma)*exp(XandW%*%gamma))-Z*((1+exp(-(XandW%*%gamma)))*log(1+exp(-(XandW%*%gamma)))+(XandW%*%gamma)*exp(-(XandW%*%gamma)))
-  } else if (Zbin==1) {# nu is standard normal
+  } else if (Zbin==1) {# Z is continuous
     V=rnorm(n,0,2)
     Z = XandW%*%gamma+V
     realV= Z-(XandW%*%gamma)
@@ -111,18 +119,16 @@ dat.sim.reg = function(n,par,iseed,Zbin,Wbin){
   T1 = IYJtrans(Mgen%*%beta1+err1,sd[7]) 
   T2 = IYJtrans(Mgen%*%beta2+err2,sd[8]) 
   T3 = IYJtrans(Mgen%*%beta3+err3,sd[9])
-  A = runif(n,0,15)
+  A = runif(n,0,15) # administrative censoring
   M = matrix(c(x0,x1,Z,W),ncol=parl,nrow=n)    # data matrix
-  # nr of columns is nr of parameters
-  # nr of rows is sample size
-  
+
   Y = pmin(T1,T2,T3,A) # observed non-transformed time
   d1 = as.numeric(Y==T1) # censoring indicator
   d2 = ifelse(d1==0,as.numeric(Y==T2),0)
   d3 = ifelse(d1==1 | d2==1,0,as.numeric(Y==T3))
   da = 1-d1-d2-d3
   data = cbind(Y,d1,d2,d3,da,M,realV) # data consisting of observed time,
-  # censoring indicator, all data and the control function
+  # censoring indicators, all data and the control function
   
   return(data)
 }
@@ -162,7 +168,7 @@ LikGamma2 = function(par,Y,M){
 # - Does assume dependent censoring
 # - Uses Yeo-Johnson transformation
 
-LikF = function(par,Y,d1,d2,d3,da,M){ 
+LikF.cmprsk = function(par,Y,d1,d2,d3,da,M){ 
   M=as.matrix(M)
   k = ncol(M)
   l = 2*k
@@ -183,7 +189,7 @@ LikF = function(par,Y,d1,d2,d3,da,M){
   theta_2 = par[p+8]
   theta_3 = par[p+9]
   
-  if (is.positive.definite(sigma,tol=1e-30)){
+  if (is.positive.definite(sigma,tol=1e-30)){ # Not every sigma, rho combination results in valid variance covariance matrix (check positive definite)
     transY.T1=YJtrans(Y,theta_1)
     DtransY.T1=DYJtrans(Y,theta_1)
     transY.T2=YJtrans(Y,theta_2)
@@ -210,7 +216,7 @@ LikF = function(par,Y,d1,d2,d3,da,M){
     Logn = sum(log(p1)); 
     return(-Logn)
   }else{
-    return(2^{31}-1)
+    return(2^{31}-1) # if not positive definite --> return a very large value
   }
   
 }
@@ -219,7 +225,7 @@ LikF = function(par,Y,d1,d2,d3,da,M){
 ################################
 
 # - Does assume endogeneity
-# - Doesn't assume dependent censoring
+# - Doesn't assume dependent censoring or dependency between competing risks
 # - Uses Yeo-Johnson transformation
 
 LikI.bis = function(par,Y,d1,d2,d3,da,M){ 
@@ -235,7 +241,7 @@ LikI.bis = function(par,Y,d1,d2,d3,da,M){
   sigma1 = par[p+1]
   sigma2 = par[p+2]
   sigma3 = par[p+3]
-  rho12 = 0
+  rho12 = 0 # all correlations are assumed equal to zero
   rho13 = 0
   rho23 = 0
   sigma <- matrix(c(sigma1^2,sigma1*sigma2*rho12,sigma1*sigma3*rho13, sigma1*sigma2*rho12,sigma2^2,sigma2*sigma3*rho23,sigma1*sigma3*rho13,sigma2*sigma3*rho23,sigma3^2),ncol=3)
@@ -272,8 +278,11 @@ LikI.bis = function(par,Y,d1,d2,d3,da,M){
   
 }
 
+# - Does assume endogeneity
+# - Doesn't assume dependent censoring but does assume dependency between competing risks
+# - Uses Yeo-Johnson transformation
 
-LikI = function(par,Y,d1,d2,d3,da,M){ 
+LikI.cmprsk = function(par,Y,d1,d2,d3,da,M){ 
   M=as.matrix(M)
   k = ncol(M)
   l = 2*k
@@ -286,8 +295,8 @@ LikI = function(par,Y,d1,d2,d3,da,M){
   sigma1 = par[p+1]
   sigma2 = par[p+2]
   sigma3 = par[p+3]
-  rho12 = par[p+4]
-  rho13 = 0
+  rho12 = par[p+4] # correlation between competing risks is non-zero
+  rho13 = 0 # independent censoring is assumed
   rho23 = 0
   sigma <- matrix(c(sigma1^2,sigma1*sigma2*rho12,sigma1*sigma3*rho13, sigma1*sigma2*rho12,sigma2^2,sigma2*sigma3*rho23,sigma1*sigma3*rho13,sigma2*sigma3*rho23,sigma3^2),ncol=3)
   theta_1 = par[p+5]
@@ -326,6 +335,11 @@ LikI = function(par,Y,d1,d2,d3,da,M){
   }
 }
 
+####################
+# Data application #
+####################
+
+# Likelihood functions data application (V=0 method)
 
 LikFG.app = function(par,Y,Delta,Xi,M){ 
   M=as.matrix(M)
@@ -405,13 +419,23 @@ LikIGamma.app = function(par,Y,Delta,Xi,M){
 }
 
 
+
 ######################## simulation function ###################################
 SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.theta_2,init.value.theta_3) {
   per=0
   per2=0
   per3=0
   
-  results.C1.11 = c()
+  # Define empty tables to store the results of estimated CIF 
+  # (nrow  = nr of iterations, ncol = nr of time points evaluated)
+  # format: results.CiA.kj
+  # i=1,2: C1 is competing risk 1 and C2 is competing risk 2
+  # A= "","I","E","R", "C": with "" the two-step estimator, "I" the independent estimator,
+  #    "E" the naive estimator, "C" a nonparametric estimator and "R" using the true parameter values
+  # k=0,1: value of binary variable Z
+  # j=0,1: value of binary variable W
+  
+  results.C1.11 = c() 
   results.C2.11 = c()
   results.C1I.11 = c()
   results.C2I.11 = c()
@@ -419,6 +443,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.C2E.11 = c()
   results.C1R.11 = c()
   results.C2R.11 = c()
+  results.C1C.11 = c()
+  results.C2C.11 = c()
   
   results.C1.10 = c()
   results.C2.10 = c()
@@ -428,6 +454,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.C2E.10 = c()
   results.C1R.10 = c()
   results.C2R.10 = c()
+  results.C1C.10 = c()
+  results.C2C.10 = c()
   
   results.C1.01 = c()
   results.C2.01 = c()
@@ -437,6 +465,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.C2E.01 = c()
   results.C1R.01 = c()
   results.C2R.01 = c()
+  results.C1C.01 = c()
+  results.C2C.01 = c()
   
   results.C1.00 = c()
   results.C2.00 = c()
@@ -446,13 +476,16 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.C2E.00 = c()
   results.C1R.00 = c()
   results.C2R.00 = c()
+  results.C1C.00 = c()
+  results.C2C.00 = c()
+  
   
   for (i in 1:nsim) {
     # i = 1 # for testing
     
     if (round(i %% (nsim/10)) == 0) {cat((i/nsim)*100,"%", "\n", sep="")}
     
-    data = dat.sim.reg(n,parN,iseed+i,2,2)
+    data = dat.sim.reg(n,parN,iseed+i,2,2) # generate data
     
     Y = data[,1]
     d1 = data[,2]
@@ -477,9 +510,12 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
     # True value for V
     MrealV = cbind(data[,6:(4+parl)],data[,ncol(data)])
     
-    per=per+table(d1)[2]
-    per2=per2+table(d2)[2]
-    per3=per3+table(d3)[2]
+    per=per+table(d1)[2] # percentage T1 (C1)
+    per2=per2+table(d2)[2] # percentage T2 (C2)
+    per3=per3+table(d3)[2] # percentage dependent censoring
+    
+    # Model assuming independence between risks and independent censoring
+    # (to generate starting values for the other models)
     
     # Assign starting values:
     # - beta1 = zero-vector
@@ -488,27 +524,40 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
     # - sigma1 = 1
     # - sigma2 = 1 
     # - sigma3 = 1 
-    # - rho12 = 0 
     # - theta_1 = init.value.theta_1
     # - theta_2 = init.value.theta_2
     # - theta_3 = init.value.theta_3
+    # - rho values are all assumed zero (no starting value necessary)
     
     init = c(rep(0,totparl), 1, 1,1, init.value.theta_1, init.value.theta_2, init.value.theta_3)
     parhat.init = nloptr(x0=c(init),eval_f=LikI.bis,Y=Y,d1=d1,d2=d2,d3=d3,da=da,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,1e-5, 0,0,0),ub=c(rep(Inf,totparl),Inf,Inf,Inf,2, 2,2),
                          eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
+   
+    # Independent model: Assuming independent censoring but no independence between risks
+
+    # Assign starting values:
+    # - beta1 = zero-vector
+    # - beta2 = zero-vector
+    # - beta3 = zero-vector
+    # - sigma1 = 1
+    # - sigma2 = 1 
+    # - sigma3 = 1 
+    # - rho12 = 0
+    # - theta_1 = init.value.theta_1
+    # - theta_2 = init.value.theta_2
+    # - theta_3 = init.value.theta_3
     
+    # add starting value for rho12
     init<-c(parhat.init[1:(length(parhat.init)-3)],0,parhat.init[length(parhat.init)-2],parhat.init[length(parhat.init)-1],parhat.init[length(parhat.init)])
     
-    # Independent model for starting values sigma and theta.
-
-    parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,d1=d1,d2=d2,d3=d3,da=da,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,1e-5,-0.99, 0,0,0),ub=c(rep(Inf,totparl),Inf,Inf,Inf,0.99,2, 2,2),
+    parhat1 = nloptr(x0=c(init),eval_f=LikI.cmprsk,Y=Y,d1=d1,d2=d2,d3=d3,da=da,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,1e-5,-0.99, 0,0,0),ub=c(rep(Inf,totparl),Inf,Inf,Inf,0.99,2, 2,2),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
-    # Model with no V --> remove data for v from data matrix
+    # Model with no V --> remove data for V from data matrix
     ME = M[,-ncol(M)]
     
-    # Remove coefficients for v in the vector parhat1. Add starting value for rho.
+    # Remove coefficients for V in the vector parhat1. Add starting value for rho13 and rho23.
     # The final vector will be of the form:
     # [1:3] : beta1
     # [4:6] : beta2
@@ -523,13 +572,13 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
     # [17]  : theta_2
     # [18]  : theta_3
     
-    # Remove coefficients for v
+    # Remove coefficients for V 
     initE = parhat.init[-parl]
     initE = initE [-(2*parl-1)]
     initE = initE [-(3*parl-2)]
     
     # Append theta's to initE and replace the original theta_1 and theta_2 (now fourth and fifth-to-last
-    # element) with the initial value for rho.
+    # element) with the initial value for rho13 and rho23.
     initE = c(initE[-length(initE)],initE[length(initE)-2],initE[length(initE)-2],initE[length(initE)-1],initE[length(initE)])
     initE[length(initE) - 3] <- 0
     initE[length(initE) - 4] <- 0
@@ -537,7 +586,7 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
     
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,d1=d1,d2=d2,d3=d3,da=da,M=ME,lb=c(rep(-Inf,(totparl-3)),1e-05,1e-5,1e-5,-0.99,-0.99,-0.99,0,0,0),ub=c(rep(Inf,(totparl-3)),Inf,Inf,Inf,0.99,0.99,0.99,2,2,2),
+    parhatE = nloptr(x0=initE,eval_f=LikF.cmprsk,Y=Y,d1=d1,d2=d2,d3=d3,da=da,M=ME,lb=c(rep(-Inf,(totparl-3)),1e-05,1e-5,1e-5,-0.99,-0.99,-0.99,0,0,0),ub=c(rep(Inf,(totparl-3)),Inf,Inf,Inf,0.99,0.99,0.99,2,2,2),
                      eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=1000,"xtol_abs"=rep(1.0e-30)))$solution
     
 
@@ -562,16 +611,17 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
 
     # Again we make sure to properly adapt the upper -and lower bound values of
     # theta.
-    parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,d1=d1,d2=d2,d3=d3,da=da,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,1e-5,-0.99,-0.99,-0.99,0,0,0),ub=c(rep(Inf,totparl),Inf,Inf,Inf,0.99,0.99,0.99,2,2,2),
+    parhat = nloptr(x0=initd,eval_f=LikF.cmprsk,Y=Y,d1=d1,d2=d2,d3=d3,da=da,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,1e-5,-0.99,-0.99,-0.99,0,0,0),ub=c(rep(Inf,totparl),Inf,Inf,Inf,0.99,0.99,0.99,2,2,2),
                     eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
     
     
     
-    ########### Estimate CIF for different time-points (X=1)
-    Time <- seq(from=1,to=200,by=0.5)
+    ####### Estimate CIF for different time-points (always assuming X=1) #######
+    
+    Time <- seq(from=1,to=200,by=0.5) # Times to evaluate
     
     # Z1-W1
-    C1.11<-c()
+    C1.11<-c() # create empty list to save the results for each time
     C2.11<-c()
     C1I.11<-c()
     C2I.11<-c()
@@ -590,20 +640,22 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
     M.true.11 <- c(1,1,Z.11,V.true.11) # true M matrix
     for (i in 1:length(Time)){ #calculate CIF
       
+      # Two-step estimator
       C1.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhat[19],theta2=parhat[20],sigma1=parhat[13],sigma2=parhat[14],rho12=parhat[16],beta1=parhat[1:4],beta2=parhat[5:8],M=M.11)
       C2.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhat[19],theta2=parhat[20],sigma1=parhat[13],sigma2=parhat[14],rho12=parhat[16],beta1=parhat[1:4],beta2=parhat[5:8],M=M.11)  
       
+      # Independent estimator
       C1I.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhat1[17],theta2=parhat1[18],sigma1=parhat1[13],sigma2=parhat1[14],rho12=parhat1[16],beta1=parhat1[1:4],beta2=parhat1[5:8],M=M.11)
       C2I.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhat1[17],theta2=parhat1[18],sigma1=parhat1[13],sigma2=parhat1[14],rho12=parhat1[16],beta1=parhat1[1:4],beta2=parhat1[5:8],M=M.11)  
       
+      # Naive estimator
       C1E.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[16],theta2=parhatE[17],sigma1=parhatE[10],sigma2=parhatE[11],rho12=parhatE[13],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,1,1))
       C2E.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[16],theta2=parhatE[17],sigma1=parhatE[10],sigma2=parhatE[11],rho12=parhatE[13],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,1,1))  
       
+      # Using true parameter values
       C1R.11[i] <- integrate(integral1,-Inf,log(Time[i]), theta1=parN[[4]][7],theta2=parN[[4]][8],sigma1=parN[[4]][1],sigma2=parN[[4]][2],rho12=parN[[4]][4],beta1=parN[[1]],beta2=parN[[2]],M=M.true.11) 
       C2R.11[i] <- integrate(integral2,-Inf,log(Time[i]), theta1=parN[[4]][7],theta2=parN[[4]][8],sigma1=parN[[4]][1],sigma2=parN[[4]][2],rho12=parN[[4]][4],beta1=parN[[1]],beta2=parN[[2]],M=M.true.11) 
     }
-    
-    
     
     
     # Z1-W0
@@ -701,6 +753,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
     
     options(warn=0)
     
+    # Bind the results from this iteration to tables
+    
     results.C1.11 = rbind(results.C1.11,unlist(C1.11))
     results.C2.11 = rbind(results.C2.11,unlist(C2.11))
     results.C1I.11 = rbind(results.C1I.11,unlist(C1I.11))
@@ -737,13 +791,51 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
     results.C1R.00 = rbind(results.C1R.00,unlist(C1R.00))
     results.C2R.00 = rbind(results.C2R.00,unlist(C2R.00))
     
+    
+    
+    
+    # Nonparametric estimator of CIF
+    data1 = data[data[,7]==1,] #value of X is equal to 1
+    Y = exp(data1[,1])
+    d1 = data1[,2]
+    d2 = data1[,3]
+    d3 = data1[,4]
+    da = data1[,5]
+    D = d1+2*d2 #1 of C1, 2 if C2 and 0 if censored (dependent or administrative)
+    Z = data1[,parl+4]
+    W = data1[,parl+5]
+    group=factor(Z+2*W) #0 (Z=0,W=0), 1(Z=1,W=0), 2(Z=0,W=1), 3(Z=1,W=1)
+      
+    fit = timepoints(cuminc(Y,D,group,cencode=0),Time) # nonparametric estimation
+      
+    results.C1C.11 = rbind(results.C1C.11,fit$est[4,])
+    results.C2C.11 = rbind(results.C2C.11,fit$est[8,])
+    results.C1C.10 = rbind(results.C1C.10,fit$est[2,])
+    results.C2C.10 = rbind(results.C2C.10,fit$est[6,])
+    results.C1C.01 = rbind(results.C1C.01,fit$est[3,])
+    results.C2C.01 = rbind(results.C2C.01,fit$est[7,])
+    results.C1C.00 = rbind(results.C1C.00,fit$est[1,])
+    results.C2C.00 = rbind(results.C2C.00,fit$est[5,])
+
   }
-  print(per/(n*nsim))     #percentage of censoring
-  print(per2/(n*nsim)) 
-  print(per3/(n*nsim)) 
+  # Our tables now contain the estimated CIF at different time points (columns)
+  # for every iteration (rows)
+  
+  print(per/(n*nsim))     # percentage of C1
+  print(per2/(n*nsim))    # percentage of C2
+  print(per3/(n*nsim))    # percentage of dependent censoring
+  
+  # We will now create two tables:
+  # results.mean contains the estimated mean CIF 
+  #   - columns are time points
+  #   - different row for every estimator, every competing risk and every Z-W combination
+  # results.RMSE contains the estimated RMSE
+  #   - columns are time points
+  #   - different row for every estimator, every competing risk and every Z-W combination
   
   # Mean estimated CIF
   results.mean<-Time
+  
   results.mean<-rbind(results.mean,apply(results.C1.11,2,mean))
   results.mean<-rbind(results.mean,apply(results.C2.11,2,mean))
   results.mean<-rbind(results.mean,apply(results.C1I.11,2,mean))
@@ -752,6 +844,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.mean<-rbind(results.mean,apply(results.C2E.11,2,mean))
   results.mean<-rbind(results.mean,apply(results.C1R.11,2,mean))
   results.mean<-rbind(results.mean,apply(results.C2R.11,2,mean))
+  results.mean<-rbind(results.mean,apply(results.C1C.11,2,mean))
+  results.mean<-rbind(results.mean,apply(results.C2C.11,2,mean))
   
   results.mean<-rbind(results.mean,apply(results.C1.10,2,mean))
   results.mean<-rbind(results.mean,apply(results.C2.10,2,mean))
@@ -761,6 +855,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.mean<-rbind(results.mean,apply(results.C2E.10,2,mean))
   results.mean<-rbind(results.mean,apply(results.C1R.10,2,mean))
   results.mean<-rbind(results.mean,apply(results.C2R.10,2,mean))
+  results.mean<-rbind(results.mean,apply(results.C1C.10,2,mean))
+  results.mean<-rbind(results.mean,apply(results.C2C.10,2,mean))
   
   results.mean<-rbind(results.mean,apply(results.C1.01,2,mean))
   results.mean<-rbind(results.mean,apply(results.C2.01,2,mean))
@@ -770,6 +866,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.mean<-rbind(results.mean,apply(results.C2E.01,2,mean))
   results.mean<-rbind(results.mean,apply(results.C1R.01,2,mean))
   results.mean<-rbind(results.mean,apply(results.C2R.01,2,mean))
+  results.mean<-rbind(results.mean,apply(results.C1C.01,2,mean))
+  results.mean<-rbind(results.mean,apply(results.C2C.01,2,mean))
   
   results.mean<-rbind(results.mean,apply(results.C1.00,2,mean))
   results.mean<-rbind(results.mean,apply(results.C2.00,2,mean))
@@ -779,6 +877,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.mean<-rbind(results.mean,apply(results.C2E.00,2,mean))
   results.mean<-rbind(results.mean,apply(results.C1R.00,2,mean))
   results.mean<-rbind(results.mean,apply(results.C2R.00,2,mean))
+  results.mean<-rbind(results.mean,apply(results.C1C.00,2,mean))
+  results.mean<-rbind(results.mean,apply(results.C2C.00,2,mean))
   
   # Estimated RMSE
   results.RMSE<-Time
@@ -789,6 +889,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2I.11-results.C2R.11)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1E.11-results.C1R.11)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2E.11-results.C2R.11)^2,2,mean)))
+  results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1C.11-results.C1R.11)^2,2,mean)))
+  results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2C.11-results.C2R.11)^2,2,mean)))
   
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1.10-results.C1R.10)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2.10-results.C2R.10)^2,2,mean)))
@@ -796,6 +898,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2I.10-results.C2R.10)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1E.10-results.C1R.10)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2E.10-results.C2R.10)^2,2,mean)))
+  results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1C.10-results.C1R.10)^2,2,mean)))
+  results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2C.10-results.C2R.10)^2,2,mean)))
   
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1.01-results.C1R.01)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2.01-results.C2R.01)^2,2,mean)))
@@ -803,6 +907,8 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2I.01-results.C2R.01)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1E.01-results.C1R.01)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2E.01-results.C2R.01)^2,2,mean)))
+  results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1C.01-results.C1R.01)^2,2,mean)))
+  results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2C.01-results.C2R.01)^2,2,mean)))
   
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1.00-results.C1R.00)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2.00-results.C2R.00)^2,2,mean)))
@@ -810,9 +916,11 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2I.00-results.C2R.00)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1E.00-results.C1R.00)^2,2,mean)))
   results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2E.00-results.C2R.00)^2,2,mean)))
+  results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C1C.00-results.C1R.00)^2,2,mean)))
+  results.RMSE<-rbind(results.RMSE,sqrt(apply((results.C2C.00-results.C2R.00)^2,2,mean)))
   
-  rownames(results.mean)<-c('time','C1.11','C2.11','C1I.11','C2I.11','C1E.11','C2E.11','C1R.11','C2R.11','C1.10','C2.10','C1I.10','C2I.10','C1E.10','C2E.10','C1R.10','C2R.10','C1.01','C2.01','C1I.01','C2I.01','C1E.01','C2E.01','C1R.01','C2R.01','C1.00','C2.00','C1I.00','C2I.00','C1E.00','C2E.00','C1R.00','C2R.00')
-  rownames(results.RMSE)<-c('time','C1.11','C2.11','C1I.11','C2I.11','C1E.11','C2E.11','C1.10','C2.10','C1I.10','C2I.10','C1E.10','C2E.10','C1.01','C2.01','C1I.01','C2I.01','C1E.01','C2E.01','C1.00','C2.00','C1I.00','C2I.00','C1E.00','C2E.00')
+  rownames(results.mean)<-c('time','C1.11','C2.11','C1I.11','C2I.11','C1E.11','C2E.11','C1R.11','C2R.11','C1C.11','C2C.11','C1.10','C2.10','C1I.10','C2I.10','C1E.10','C2E.10','C1R.10','C2R.10','C1C.10','C2C.10','C1.01','C2.01','C1I.01','C2I.01','C1E.01','C2E.01','C1R.01','C2R.01','C1C.01','C2C.01','C1.00','C2.00','C1I.00','C2I.00','C1E.00','C2E.00','C1R.00','C2R.00','C1C.00','C2C.00')
+  rownames(results.RMSE)<-c('time','C1.11','C2.11','C1I.11','C2I.11','C1E.11','C2E.11','C1C.11','C2C.11','C1.10','C2.10','C1I.10','C2I.10','C1E.10','C2E.10','C1C.10','C2C.10','C1.01','C2.01','C1I.01','C2I.01','C1E.01','C2E.01','C1C.01','C2C.01','C1.00','C2.00','C1I.00','C2I.00','C1E.00','C2E.00','C1C.00','C2C.00')
   
   # Make nice Latex table
   xtab.mean = xtable(results.mean)
@@ -839,13 +947,19 @@ SimulationCI22_Sara = function(n, nsim, iseed, init.value.theta_1, init.value.th
   print.xtable(xtab.RMSE,file=paste0("YJ_RMSE_",n,".txt"),add.to.row=addtorow,append=TRUE,table.placement="!")
   
   
-  return(list(results.mean,results.RMSE))
+  return(list(results.mean,results.RMSE)) # return tables containing mean and RMSE
   
 }
 
 
 
 ########################## Data application cmprsk ##############################
+
+# We can try to estimate the models gamma using
+# 1. Firth's method 
+# 2. putting V=0 for W=0 (control group) and estimating V for W=1 (screening group)
+#    depending on the value of X (age) 
+
 
 # Firth's method
 
@@ -862,7 +976,7 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   W = data[,parl+3]
   XandW = cbind(intercept,X,W)
 
-  # Estimate V
+  # Estimate V using Firth regression
   gammaest <- summary(glm(as.factor(Z) ~ -1 + XandW, family = "binomial",method="brglmFit"))$coefficients
   gammaest <- gammaest[,1]
 
@@ -879,27 +993,32 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
   
   # Independent model for starting values sigmas and theta.
+  # We use the likelihood from "Functions_ad" as we have only two variables (two competing risks)
+  # The function LikI.cmprsk on the contrary assumes three variables (two competing risks + dependent censoring)
   parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
   print("independent")
   #
-  # Our model: Taking into account Z is likely a confounded variable and that T 
-  #            and C are dependent
+  # Our model: Taking into account Z is likely a confounded variable and that T1 
+  #            and T2 are dependent
   #
   
   # Create vector of initial values for the estimation of the parameters using the
   # parhat1. The final vector will be of the following form. 
-  # [1:7]  : beta
-  # [8:14] : eta
-  # [15]   : sigma1
-  # [16]   : sigma2
-  # [17]   : rho
-  # [18]   : theta_1
-  # [19]   : theta_2
+  # [1:4]  : beta1
+  # [5:8]  : beta2
+  # [9]    : sigma1
+  # [10]   : sigma2
+  # [11]   : rho
+  # [12]   : theta_1
+  # [13]   : theta_2
   
+  # initial values: add starting value for rho
   initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
   initd[length(initd) - 2] <- 0
+  
+  # We again use the function LikF and not LikF.cmprsk
   parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                   eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
@@ -909,7 +1028,7 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   
   Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
   
-  # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta
+  # Select part of variance matrix pertaining to beta1, beta2, var1, var2, rho and theta
   # (i.e. H_delta).
   H = Hgamma[1:length(initd),1:length(initd)]
   HI = ginv(H)
@@ -1007,7 +1126,7 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   
 
   # Naive model: assuming Z is an unconfounded variable, but including dependence
-  #              between T and C.
+  #              between two competing risks.
   #
   
   # remove data for v from data matrix
@@ -1015,13 +1134,13 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   
   # Remove coefficients for v in the vector parhat1. Add starting value for rho.
   # The final vector will be of the form:
-  # [1:6]  : beta
-  # [7:12] : eta
-  # [13]   : sigma1
-  # [14]   : sigma2
-  # [15]   : rho
-  # [16]   : theta_1
-  # [17]   : theta_2
+  # [1:3]  : beta1
+  # [5:6]  : beta2
+  # [7]    : sigma1
+  # [8]    : sigma2
+  # [9]    : rho
+  # [10]   : theta_1
+  # [11]   : theta_2
   
   # Remove coefficients for v
   initE = parhat1[-parl]
@@ -1033,6 +1152,7 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   initE[length(initE) - 2] <- 0
   
   # Estimate the parameters
+  # We again use the function LikF and not LikF.cmprsk
   parhatE = nloptr(x0=initE,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=ME,lb=c(rep(-Inf,(totparl-2)),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,(totparl-2)),Inf,Inf,0.99,2,2),
                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
@@ -1078,14 +1198,7 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
               matrix(c(parhatE[1:(totparl-2)]+1.96*(se1)[1:(totparl-2)],S1_u,S2_u,r1_u, r1theta1_u, r1theta2_u),ncol=1)) 
   
   
-  # We construct the vector with
-  # [1:7]   : beta
-  # [8:14]  : eta
-  # [15]    : sigma1
-  # [16]    : sigma2
-  # [17]    : theta_1
-  # [18]    : theta_2
-  # [19:24] : gamma
+  # Standard errors independent model
   
   parhatGI = c(parhat1,as.vector(gammaest))
   
@@ -1138,7 +1251,7 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
               matrix(c(parhat1[1:totparl]+1.96*(seI[1:totparl]),s1_uI,s2_uI,rItheta1_u, rItheta2_u), ncol=1))
   
   
-  # Results of model assuming confounding and dependence between T and C.
+  # Results of model assuming confounding and dependence between C1 and C2.
   pvalue <- 2*pmin((1-pnorm(parhat/se)),pnorm(parhat/se))
   significant <- ifelse(pvalue < 0.10,
                         ifelse(pvalue < 0.05,
@@ -1211,10 +1324,10 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   
   
   
-  ########### Estimate CIF for different time-points (X=1)
-  Time <- seq(from=1,to=8000,by=1)
+  ########### Estimate CIF for different time-points (assuming unstandardized age of 50)
+  Time <- seq(from=1,to=8000,by=1) # times to evaluate
   
-  # Z1-W1 (people who actually participated in the scanning)
+  # Z1-W1 (people who actually participated in the screening)
   C1.11<-c() # using our model
   C2.11<-c()
   C1E.11<-c() # using model without endogeneity
@@ -1223,39 +1336,39 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   
   options(warn=-1)
   
-  XandW.11<-c(1,50,1) #XandW matrix
+  XandW.11<-c(1,-0.1360154,1) #XandW matrix
   Z.11<-1 # Value for Z
   V.est.11 <- (1-Z.11)*((1+exp(XandW.11%*%gammaest))*log(1+exp(XandW.11%*%gammaest))-(XandW.11%*%gammaest)*exp(XandW.11%*%gammaest))-Z.11*((1+exp(-(XandW.11%*%gammaest)))*log(1+exp(-(XandW.11%*%gammaest)))+(XandW.11%*%gammaest)*exp(-(XandW.11%*%gammaest))) #Estimated control function
-  M.11<-c(1,50,Z.11,V.est.11) # M matrix
+  M.11<-c(1,-0.1360154,Z.11,V.est.11) # M matrix
   for (i in 1:length(Time)){ #calculate CIF
     
     C1.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.11)
     C2.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.11)  
     
-    C1E.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,1))
-    C2E.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,1))  
+    C1E.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,1))
+    C2E.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,1))  
   }
   
-  results.screened <- rbind(Time,C1.11,C2.11,C1E.11,C2E.11)
+  results.screened <- rbind(Time,C1.11,C2.11,C1E.11,C2E.11) # estimated CIF at different times for screened women
   
 
-  # Z0-W1 (People who are selected for scanning but place themselves in control group)
+  # Z0-W1 (People who are selected for screening but placed themselves in control group)
   C1.01<-c()
   C2.01<-c()
   C1E.01<-c()
   C2E.01<-c()
   
-  XandW.01<-c(1,50,1)
+  XandW.01<-c(1,-0.1360154,1)
   Z.01<-0
   V.est.01 <- (1-Z.01)*((1+exp(XandW.01%*%gammaest))*log(1+exp(XandW.01%*%gammaest))-(XandW.01%*%gammaest)*exp(XandW.01%*%gammaest))-Z.01*((1+exp(-(XandW.01%*%gammaest)))*log(1+exp(-(XandW.01%*%gammaest)))+(XandW.01%*%gammaest)*exp(-(XandW.01%*%gammaest)))
-  M.01<-c(1,50,Z.01,V.est.01)
+  M.01<-c(1,-0.1360154,Z.01,V.est.01)
   for (i in 1:length(Time)){
     
     C1.01[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.01)
     C2.01[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.01)  
    
-    C1E.01[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,0))
-    C2E.01[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,0))  
+    C1E.01[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,0))
+    C2E.01[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,0))  
   }
   
   results.not_screened <- rbind(Time,C1.01,C2.01,C1E.01,C2E.01)
@@ -1266,18 +1379,17 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   C1E.00<-c()
   C2E.00<-c()
 
-  
-  XandW.00<-c(1,50,0)
+    XandW.00<-c(1,-0.1360154,0)
   Z.00<-0
   V.est.00 <- (1-Z.00)*((1+exp(XandW.00%*%gammaest))*log(1+exp(XandW.00%*%gammaest))-(XandW.00%*%gammaest)*exp(XandW.00%*%gammaest))-Z.00*((1+exp(-(XandW.00%*%gammaest)))*log(1+exp(-(XandW.00%*%gammaest)))+(XandW.00%*%gammaest)*exp(-(XandW.00%*%gammaest)))
-  M.00<-c(1,50,Z.00,V.est.00)
+  M.00<-c(1,-0.1360154,Z.00,V.est.00)
   for (i in 1:length(Time)){
     
     C1.00[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.00)
     C2.00[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.00)  
  
-    C1E.00[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,0))
-    C2E.00[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,0))  
+    C1E.00[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,0))
+    C2E.00[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,0))  
    }
   
   results.control <- rbind(Time,C1.00,C2.00,C1E.00,C2E.00)
@@ -1285,13 +1397,14 @@ DataApplication_cmprsk.Firth <- function(data, init.value.theta_1, init.value.th
   options(warn=0)
  
   
-  return(list(results.screened, results.not_screened, results.control))
+  return(list(results.screened, results.not_screened, results.control)) # return all estimated CIF
   
   
   
 }
 
-# V=0 if W=0 method 
+# As people in the control group cannot participate in the screening, we can opt to put
+# V=0 if W=0 and only estimate V if W=1
 
 DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2) {
   
@@ -1306,7 +1419,7 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   W = data[,parl+3]
   Xandintercept = cbind(intercept,X)
   
-  # Estimate V
+  # Estimate V if W=1
   
   gammaest <- summary(glm(as.factor(Z[W==1]) ~ -1 + Xandintercept[W==1,], family = "binomial"))$coefficients
   gammaest <- gammaest[,1]
@@ -1314,6 +1427,7 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
 
   ##############################################################################
   
+  # Construct V
   V <- rep(0,length(Z))
   V[W==1] <-(1-Z[W==1])*((1+exp(Xandintercept[W==1,]%*%gammaest))*log(1+exp(Xandintercept[W==1,]%*%gammaest))-(Xandintercept[W==1,]%*%gammaest)*exp(Xandintercept[W==1,]%*%gammaest))-Z[W==1]*((1+exp(-(Xandintercept[W==1,]%*%gammaest)))*log(1+exp(-(Xandintercept[W==1,]%*%gammaest)))+(Xandintercept[W==1,]%*%gammaest)*exp(-(Xandintercept[W==1,]%*%gammaest)))
   
@@ -1326,27 +1440,30 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
   
   # Independent model for starting values sigmas and theta.
+  # We use the likelihood from "Functions_ad" as we have only two variables (two competing risks)
+  # The function LikI.cmprsk on the contrary assumes three variables (two competing risks + dependent censoring)
   parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
                    eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
   print("independent")
   #
-  # Our model: Taking into account Z is likely a confounded variable and that T 
-  #            and C are dependent
+  # Our model: Taking into account Z is likely a confounded variable and that two 
+  #            competing risks are dependent
   #
   
   # Create vector of initial values for the estimation of the parameters using the
   # parhat1. The final vector will be of the following form. 
-  # [1:7]  : beta
-  # [8:14] : eta
-  # [15]   : sigma1
-  # [16]   : sigma2
-  # [17]   : rho
-  # [18]   : theta_1
-  # [19]   : theta_2
+  # [1:4]  : beta1
+  # [5:8]  : beta2
+  # [9]    : sigma1
+  # [10]   : sigma2
+  # [11]   : rho
+  # [12]   : theta_1
+  # [13]   : theta_2
   
   initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
   initd[length(initd) - 2] <- 0
+  # We again use the function LikF and not LikF.cmprsk
   parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
                   eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
   
@@ -1356,11 +1473,11 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   
   Hgamma = hessian(LikFG.app,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
   
-  # Select part of variance matrix pertaining to beta, eta, var1, var2, rho and theta
+  # Select part of variance matrix pertaining to beta1, beta2, var1, var2, rho and theta
   # (i.e. H_delta).
   H = Hgamma[1:length(initd),1:length(initd)]
   HI = ginv(H)
-  
+ 
   Vargamma = Hgamma[1:length(initd),(length(initd)+1):(length(initd)+parlgamma)]
   
   prodvec = Xandintercept[W==1,1]
@@ -1403,6 +1520,7 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   
   gi = t(gi)
   
+  # Put psi equal to zero if V did not have to be estimated (W=0)
   psi <- matrix(0,nrow=dim(Vargamma)[1],ncol=n)
   sub <- Vargamma%*%psii
   
@@ -1462,7 +1580,7 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   
   
   # Naive model: assuming Z is an unconfounded variable, but including dependence
-  #              between T and C.
+  #              between competing risks.
   #
   
   # remove data for v from data matrix
@@ -1533,14 +1651,7 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
               matrix(c(parhatE[1:(totparl-2)]+1.96*(se1)[1:(totparl-2)],S1_u,S2_u,r1_u, r1theta1_u, r1theta2_u),ncol=1)) 
   
   
-  # We construct the vector with
-  # [1:7]   : beta
-  # [8:14]  : eta
-  # [15]    : sigma1
-  # [16]    : sigma2
-  # [17]    : theta_1
-  # [18]    : theta_2
-  # [19:24] : gamma
+  # Standard errors for independent model
   
   parhatGI = c(parhat1,as.vector(gammaest))
   
@@ -1605,7 +1716,7 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
               matrix(c(parhat1[1:totparl]+1.96*(seI[1:totparl]),s1_uI,s2_uI,rItheta1_u, rItheta2_u), ncol=1))
   
   
-  # Results of model assuming confounding and dependence between T and C.
+  # Results of model assuming confounding and dependence between competing risks.
   pvalue <- 2*pmin((1-pnorm(parhat/se)),pnorm(parhat/se))
   significant <- ifelse(pvalue < 0.10,
                         ifelse(pvalue < 0.05,
@@ -1678,10 +1789,10 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   
   
   
-  ########### Estimate CIF for different time-points (X=1)
-  Time <- seq(from=1,to=8000,by=1)
+  ########### Estimate CIF for different time-points (assuming age of 50)
+  Time <- seq(from=1,to=8000,by=1) # Times to evaluate
   
-  # Z1-W1 (people who actually participated in the scanning)
+  # Z1-W1 (people who actually participated in the screening)
   C1.11<-c() # using our model
   C2.11<-c()
   C1E.11<-c() # using model without endogeneity
@@ -1690,40 +1801,40 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   
   options(warn=-1)
   
-  X.11<-c(1,50) #X matrix
+  X.11<-c(1,-0.1360154) #X matrix
   Z.11<-1 # Value for Z
   
   V.est.11 <- (1-Z.11)*((1+exp(X.11%*%gammaest))*log(1+exp(X.11%*%gammaest))-(X.11%*%gammaest)*exp(X.11%*%gammaest))-Z.11*((1+exp(-(X.11%*%gammaest)))*log(1+exp(-(X.11%*%gammaest)))+(X.11%*%gammaest)*exp(-(X.11%*%gammaest)))
-  M.11<-c(1,50,Z.11,V.est.11) # M matrix
+  M.11<-c(1,-0.1360154,Z.11,V.est.11) # M matrix
   for (i in 1:length(Time)){ #calculate CIF
     
     C1.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.11)
     C2.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.11)  
     
-    C1E.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,1))
-    C2E.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,1))  
+    C1E.11[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,1))
+    C2E.11[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,1))  
   }
   
-  results.screened <- rbind(Time,C1.11,C2.11,C1E.11,C2E.11)
+  results.screened <- rbind(Time,C1.11,C2.11,C1E.11,C2E.11) # results for women who participated in screening
   
   
-  # Z0-W1 (People who are selected for scanning but place themselves in control group)
+  # Z0-W1 (People who are selected for screening but place themselves in control group)
   C1.01<-c()
   C2.01<-c()
   C1E.01<-c()
   C2E.01<-c()
   
-  X.01<-c(1,50)
+  X.01<-c(1,-0.1360154)
   Z.01<-0
   V.est.01 <- (1-Z.01)*((1+exp(X.01%*%gammaest))*log(1+exp(X.01%*%gammaest))-(X.01%*%gammaest)*exp(X.01%*%gammaest))-Z.01*((1+exp(-(X.01%*%gammaest)))*log(1+exp(-(X.01%*%gammaest)))+(X.01%*%gammaest)*exp(-(X.01%*%gammaest)))
-  M.01<-c(1,50,Z.01,V.est.01)
+  M.01<-c(1,-0.1360154,Z.01,V.est.01)
   for (i in 1:length(Time)){
     
     C1.01[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.01)
     C2.01[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.01)  
     
-    C1E.01[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,0))
-    C2E.01[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,0))  
+    C1E.01[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,0))
+    C2E.01[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,0))  
   }
   
   results.not_screened <- rbind(Time,C1.01,C2.01,C1E.01,C2E.01)
@@ -1735,17 +1846,17 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   C2E.00<-c()
   
   
-  X.00<-c(1,50)
+  X.00<-c(1,-0.1360154)
   Z.00<-0
   V.est.00 <- 0
-  M.00<-c(1,50,Z.00,V.est.00)
+  M.00<-c(1,-0.1360154,Z.00,V.est.00)
   for (i in 1:length(Time)){
     
     C1.00[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.00)
     C2.00[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhat[12],theta2=parhat[13],sigma1=parhat[9],sigma2=parhat[10],rho12=parhat[11],beta1=parhat[1:4],beta2=parhat[5:8],M=M.00)  
     
-    C1E.00[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,0))
-    C2E.00[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,50,0))  
+    C1E.00[i] <-integrate(integral1,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,0))
+    C2E.00[i] <-integrate(integral2,-Inf,log(Time[i]), theta1=parhatE[10],theta2=parhatE[11],sigma1=parhatE[7],sigma2=parhatE[8],rho12=parhatE[9],beta1=parhatE[1:3],beta2=parhatE[4:6],M=c(1,-0.1360154,0))  
   }
   
   results.control <- rbind(Time,C1.00,C2.00,C1E.00,C2E.00)
@@ -1753,8 +1864,10 @@ DataApplication_cmprsk <- function(data, init.value.theta_1, init.value.theta_2)
   options(warn=0)
   
   
-  return(list(results.screened, results.not_screened, results.control))
+  return(list(results.screened, results.not_screened, results.control)) # return all results
   
   
   
 }
+
+

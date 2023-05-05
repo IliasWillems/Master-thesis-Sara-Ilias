@@ -22,7 +22,7 @@ samsize= c(250, 500, 1000)
 for(l in samsize)
 {
   nsim = 100
-  myseed = 876661
+  myseed = 750751
   message("sample size = ",l)
   #SimulationCI11_SaraIlias(l,nsim,myseed, init.value.theta_1, init.value.theta_2) # Design 1
   #SimulationCI12_SaraIlias(l,nsim,myseed, init.value.theta_1, init.value.theta_2) # Design 2
