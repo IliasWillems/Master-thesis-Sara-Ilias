@@ -147,7 +147,7 @@ GOF_test_parallel <- function(data, B, iseed, Zbin, Wbin, display.plot) {
                          .export = export.vector,
                          .combine = c) %dopar% {
 
-    source("Functions_ad.R")
+    source(paste0(parent_directory, "/Functions_ad.R"))
     source("Goodness-of-fit-test_functions.R")
     
     MAX_SEED_SIZE <- 2147483647
@@ -2074,7 +2074,7 @@ GOF_test_newapproach_parallel <- function(data, B, iseed, Zbin, Wbin, display.pl
                          .export = export.vector,
                          .combine = c) %dopar% {
                            
-                           source("Functions_ad.R")
+                           source(paste0(parent_directory, "/Functions_ad.R"))
                            source("Goodness-of-fit-test_functions.R")
                            
                            # Create bootstrap data sample

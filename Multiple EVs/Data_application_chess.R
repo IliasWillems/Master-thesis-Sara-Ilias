@@ -5,7 +5,7 @@ rm(list = ls())
 wd <- getwd()
 parent_folder <- substr(wd, 1, nchar(wd) - 13)
 
-chess <- read.csv(paste0(parent_folder, "/duration_df_new.csv"))
+chess <- read.csv(paste0(parent_folder, "/Data/duration_df_new.csv"))
 library(MASS)
 library(nloptr)
 library(numDeriv)
