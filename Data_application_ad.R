@@ -3,7 +3,7 @@
 rm(list = ls())
 
 # Load necessary packages, functions and data
-fulldata<-read.csv("clean_dataset_JTPA.csv")
+fulldata<-read.csv("Data/clean_dataset_JTPA.csv")
 library(MASS)
 library(nloptr)
 library(numDeriv)

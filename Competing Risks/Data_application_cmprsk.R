@@ -3,7 +3,7 @@
 rm(list = ls())
 
 # Load necessary packages, functions and data
-fulldata<-read.csv("D:/Master statistiek/2 master/master thesis/cmprsk/package-hipb-2.2023-03-25/HIP Data/hiip_data_041515.csv")
+fulldata<-read.csv("hiip_data_041515.csv") # This data is not freely available
 library(MASS)
 library(nloptr)
 library(numDeriv)
@@ -14,7 +14,7 @@ library(matrixcalc)
 library(cmprsk)
 library(brglm2)
 source("Functions_cmprsk.R")
-source("Functions_ad.R")
+source(paste(dirname(getwd()),"Functions_ad.R",sep="/"))
 
 # data
 dataset<-fulldata[(fulldata$followup_days != "M" & fulldata$followup_days != "I"),]

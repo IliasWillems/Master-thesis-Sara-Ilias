@@ -18,7 +18,7 @@ library(VGAM)
 library(expint) # For Gumbel distributed nu
 
 source("Misspecification_functions.R")
-source("Functions_ad.R")
+source(paste(dirname(getwd()),"Functions_ad.R",sep="/"))
 
 
 ################################################################################
