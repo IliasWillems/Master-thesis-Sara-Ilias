@@ -3811,6 +3811,7 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   # Add legend
   legend(x = 700, y = 0.95, c("Transformation model", "No transformation"),
          col = c(1, 1), lty = c(1,3))
+}
 
 ########################## Data application chess ##############################
 

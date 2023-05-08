@@ -1,7 +1,3 @@
-################################################################################
-# This file should/could eventually be merged with the Code_main_ad.R and      #
-# Functions_ad.R scripts.                                                      #
-################################################################################
 
 rm(list = ls())
 
@@ -18,9 +14,10 @@ library(doParallel)
 library(expint)
 library(fMultivar)
 
-source("Functions_ad.R")
+parent_directory <- dirname(getwd())
+source(paste0(parent_directory, "/Functions_ad.R"))
 source("Goodness-of-fit-test_functions.R")
-source("Misspecification_functions.R")
+source(paste0(parent_directory, "/Misspecification/Misspecification_functions.R"))
 
 init.value.theta_1=1
 init.value.theta_2=1
