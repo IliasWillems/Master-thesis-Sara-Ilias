@@ -662,7 +662,7 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
     Omegas_KM <- rep(0, n)
     Omegas_2step <- rep(0, n)
     
-    ##### Precompute E[J(k; \gamma^*, \delta^*)] outside of the following for-loop. #####
+    ##### Precompute E[J(k; \gamma^*, \delta^*)] #####
     
     J <- matrix(nrow = (totparl + 5 + 2*parlgamma), ncol = n)
     
@@ -692,7 +692,7 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       JCi <- dnorm((Y_trans_theta2[i] - tauC)/parhat[totparl+2])*JCi_tilde
       
       JTCi_tilde <- c(JTi_tilde, JCi_tilde, 1)
-      JTCi <- pnorm2d((Y_trans_theta1[i] - tauT)/parhat[totparl+1],
+      JTCi <- dnorm2d((Y_trans_theta1[i] - tauT)/parhat[totparl+1],
                       (Y_trans_theta2[i] - tauC)/parhat[totparl+2],
                       rho = parhat[totparl + 3]) * JTCi_tilde
       
@@ -700,6 +700,32 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
     }
     
     EJ = rowMeans(J)
+    
+    ##### Also precompute E[\Phi(...) + \Phi(...) - \Phi(..., ...)] #####
+    
+    # In the process, we will store intermediate results so we can use them
+    # later on.
+    Phi_T <- rep(0, n)
+    Phi_C <- rep(0, n)
+    Phi_TC <- rep(0, n)
+    
+    for (i in 1:n) {
+      tauT <- parhat[1] + as.matrix(X)[i,]%*%parhat[2:(parl-2)] + Z[i]*parhat[parl-1] +
+        V[i]*parhat[parl]
+      tauT <- as.numeric(tauT)
+      
+      tauC <- parhat[parl+1] + as.matrix(X)[i,]%*%parhat[(parl+2):(totparl-2)] +
+        Z[i]*parhat[totparl-1] + V[i]*parhat[totparl]
+      tauC <- as.numeric(tauC)
+      
+      Phi_T[i] <- pnorm( (Y_trans_theta1 - tauT)/parhat[totparl + 1])
+      Phi_C[i] <- pnorm( (Y_trans_theta2 - tauC)/parhat[totparl + 2])
+      Phi_TC[i] <- pnorm2d((Y_trans_theta1[i] - tauT)/parhat[totparl+1],
+                           (Y_trans_theta2[i] - tauC)/parhat[totparl+2],
+                           rho = parhat[totparl + 3])
+    }
+    
+    EPhi <- (1/n)*(sum(Phi_T) + sum(Phi_C) - sum(Phi_TC))
     
     ##### For each observation S_i, compute \Omega(k; S_i) #####
     
@@ -731,18 +757,17 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       
       ###### Computations for Omega_EDF ######
       
-      # Since we would have to estimate the integral wrt Z and w again in the same
-      # way, it can be seen that Omega_EDF(k; S_i, \gamma^*, \delta^*) is equal to 0.
-      Omega_EDF <- 0
+      Omega_EDF <- (Phi_T[i] + Phi_C[i] - Phi_TC[i]) - EPhi
       
       ##### Compute Omega #####
       Omegas[i] <- Omega_2step - Omega_KM + Omega_EDF
       
       Omegas_KM[i] <- Omega_KM
       Omegas_2step[i] <- Omega_2step
+      Omega_EDF[i] <- Omega_EDF
     }
     
-    list(Omegas, Omegas_2step, Omegas_KM)
+    list(Omegas, Omegas_2step, Omegas_KM, Omega_EDF)
   }
   
   #### Estimate variance of W_n(k) for a range of k ####
@@ -796,8 +821,9 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       # For debugging
       var.Omegas_2step <- (1/length(all_Omegas[[2]]))*sum(all_Omegas[[2]]^2)
       var.Omegas_KM <- (1/length(all_Omegas[[3]]))*sum(all_Omegas[[3]]^2)
+      var.Omegas_EDF <- (1/length(all_Omegas[[4]]))*sum(all_Omegas[[4]]^2)
       
-      c(mean(Omegas), var.Omegas, var.Omegas_2step, var.Omegas_KM)
+      c(mean(Omegas), var.Omegas, var.Omegas_2step, var.Omegas_KM, var.Omegas_EDF)
     }
     
     mean_k <- mean_var_estimates[,1]
@@ -805,8 +831,11 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
     
     var_k.2step <- mean_var_estimates[,3]
     var_k.KM <- mean_var_estimates[,4]
+    var_k.EDF <- mean_var_estimates[,5]
     
   } else {
+    
+    stop("This version is not (yet) up-to-date with current progression.")
     
     mean_k <- rep(0, K_RANGE_SIZE)
     var_k <- rep(0, K_RANGE_SIZE)
@@ -850,12 +879,16 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
   ##############################################################################
   # For debugging
   
-  par(mfrow = c(2, 2))
+  par(mfrow = c(1, 2))
   plot(k_range, mean_k)
   plot(k_range, var_k)
   
+  par(mfrow = c(2, 2))
+  
+  plot(k_range, var_k)
   plot(k_range, var_k.2step)
   plot(k_range, var_k.KM)
+  plot(k_range, var_k.EDF)
   
   # cov matrix package (vcov.coxph)
   
