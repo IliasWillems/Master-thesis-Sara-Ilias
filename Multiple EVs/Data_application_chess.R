@@ -393,12 +393,12 @@ print(paste("Stratified: ",exp(IYJtrans(qnorm(0.5)*s2+t(parhat2[1:length(dd.1)])
 
 
 plot(Time,S1_full, type = 's', col = 1, ylab="Probability", main="Time until checkmate")
-lines(Time,S1, type = 's', col = 2)
+lines(Time,S1, type = 's', col = 1, lty=3)
 legend(x = 7000, y = 0.85, c("Multiple EV", "Stratified"),
-       col = c(1, 2), lty = 1)
+       col = c(1, 1), lty = c(1,3))
 
 
 plot(Time,S2_full, type = 's', col = 1, ylab="Probability", main="Time until checkmate")
-lines(Time,S2, type = 's', col = 2)
+lines(Time,S2, type = 's', col = 1, lty=3)
 legend(x = 7000, y = 0.85, c("Multiple EV", "Stratified"),
-       col = c(1, 2), lty = 1)
+       col = c(1, 1), lty = c(1,3))
