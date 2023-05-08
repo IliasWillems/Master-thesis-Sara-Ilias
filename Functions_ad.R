@@ -3806,12 +3806,11 @@ DataApplicationJPTA <- function(data, init.value.theta_1, init.value.theta_2) {
   print(paste("Transformation: ",exp(IYJtrans(qnorm(0.5)*s1+t(parhat[1:length(dd.2)]) %*% dd.2,theta))))
   
   plot(Time, S, type = 's', col = 1)
-  lines(Time, S_noTransform, type = 's', col = 2)
+  lines(Time, S_noTransform, type = 's', col = 1, lty=3)
   
   # Add legend
-  legend(x = 800, y = 0.95, c("Transformation model", "No transformation"),
-         col = c(1, 2), lty = 1)
-}
+  legend(x = 700, y = 0.95, c("Transformation model", "No transformation"),
+         col = c(1, 1), lty = c(1,3))
 
 ########################## Data application chess ##############################
 
