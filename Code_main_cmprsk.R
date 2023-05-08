@@ -44,29 +44,30 @@ results.RMSE = results[[2]]
 
 par(mfrow=c(2,2))
 #C1-Z1-W1
-plot(c(0,results.mean[1,]),c(0,results.mean[2,]),type="l", lty=1, main=expression(paste(C1-Z1-tilde(W),1)), xlab="Time",ylab="Probability",xlim=c(0,30), ylim=c(0,0.35)) # two-step model
-lines(c(0,results.mean[1,]),c(0,results.mean[10,]), lty=5,type="l") # nonparametric
-lines(c(0,results.mean[1,]),c(0,results.mean[6,]), lty=4,type="l", col="azure4") # naive
-lines(c(0,results.mean[1,]),c(0,results.mean[8,]), lty=1,type="l", col="red") # true
+plot(c(0,results.mean[1,]),c(0,results.mean[2,]),type="l", lty=3, main=expression(paste(C1-Z1-tilde(W),1)), xlab="Time",ylab="Probability",xlim=c(0,30), ylim=c(0,0.35)) # two-step model
+lines(c(0,results.mean[1,]),c(0,results.mean[10,]), lty=3,type="l",col="grey50") # nonparametric
+lines(c(0,results.mean[1,]),c(0,results.mean[6,]), lty=1,type="l", col="grey70") # naive
+lines(c(0,results.mean[1,]),c(0,results.mean[8,]), lty=1,type="l") # true
 
 #C2-Z1-W1
-plot(c(0,results.mean[1,]),c(0,results.mean[3,]),type="l", lty=1, main=expression(paste(C2-Z1-tilde(W),1)), xlab="Time",ylab="Probability",xlim=c(0,30))
-lines(c(0,results.mean[1,]),c(0,results.mean[11,]), lty=5,type="l")
-lines(c(0,results.mean[1,]),c(0,results.mean[7,]), lty=4,type="l", col="azure4")
-lines(c(0,results.mean[1,]),c(0,results.mean[9,]), lty=1,type="l", col="red")
+plot(c(0,results.mean[1,]),c(0,results.mean[3,]),type="l", lty=3, main=expression(paste(C2-Z1-tilde(W),1)), xlab="Time",ylab="Probability",xlim=c(0,30))
+lines(c(0,results.mean[1,]),c(0,results.mean[11,]), lty=3,type="l",col="grey50")
+lines(c(0,results.mean[1,]),c(0,results.mean[7,]), lty=1,type="l", col="grey70")
+lines(c(0,results.mean[1,]),c(0,results.mean[9,]), lty=1,type="l")
 
 #C1-Z0-W0
-plot(c(0,results.mean[1,]),c(0,results.mean[32,]),type="l", lty=1, main=expression(paste(C1-Z0-tilde(W),0)), xlab="Time",ylab="Probability",xlim=c(0,100), ylim=c(0,0.8))
-lines(c(0,results.mean[1,]),c(0,results.mean[40,]), lty=5,type="l")
-lines(c(0,results.mean[1,]),c(0,results.mean[36,]), lty=4,type="l", col="azure4")
-lines(c(0,results.mean[1,]),c(0,results.mean[38,]), lty=1,type="l", col="red")
+plot(c(0,results.mean[1,]),c(0,results.mean[32,]),type="l", lty=3, main=expression(paste(C1-Z0-tilde(W),0)), xlab="Time",ylab="Probability",xlim=c(0,100), ylim=c(0,0.8))
+lines(c(0,results.mean[1,]),c(0,results.mean[40,]), lty=3,type="l",col="grey50")
+lines(c(0,results.mean[1,]),c(0,results.mean[36,]), lty=1,type="l", col="grey70")
+lines(c(0,results.mean[1,]),c(0,results.mean[38,]), lty=1,type="l")
 
 #C2-Z0-W0
-plot(c(0,results.mean[1,]),c(0,results.mean[33,]),type="l", lty=1, main=expression(paste(C2-Z0-tilde(W),0)), xlab="Time",ylab="Probability",xlim=c(0,100), ylim=c(0,0.05))
-lines(c(0,results.mean[1,]),c(0,results.mean[41,]), lty=5,type="l")
-lines(c(0,results.mean[1,]),c(0,results.mean[37,]), lty=4,type="l", col="azure4")
-lines(c(0,results.mean[1,]),c(0,results.mean[39,]), lty=1,type="l", col="red")
+plot(c(0,results.mean[1,]),c(0,results.mean[33,]),type="l", lty=3, main=expression(paste(C2-Z0-tilde(W),0)), xlab="Time",ylab="Probability",xlim=c(0,100), ylim=c(0,0.05))
+lines(c(0,results.mean[1,]),c(0,results.mean[41,]), lty=3,type="l",col="grey50")
+lines(c(0,results.mean[1,]),c(0,results.mean[37,]), lty=1,type="l", col="grey70")
+lines(c(0,results.mean[1,]),c(0,results.mean[39,]), lty=1,type="l")
 par(mfrow=c(1,1))
+
 
 
 
