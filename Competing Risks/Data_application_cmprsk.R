@@ -3,7 +3,7 @@
 rm(list = ls())
 
 # Load necessary packages, functions and data
-fulldata<-read.csv("hiip_data_041515.csv") # This data is not freely available
+fulldata<-read.csv("hiip_data_041515.csv") # The data collected by the HIP Breast Cancer Screening Trial is not freely available. It can be requested via the National Cancer Institute (NCI).
 library(MASS)
 library(nloptr)
 library(numDeriv)
