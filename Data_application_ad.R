@@ -1,3 +1,5 @@
+# the original data can be found at: https://www.upjohn.org/data-tools/employment-research-data-center/national-jtpa-study
+# The function used to clean the data can be found at: https://github.com/GillesCrommen/DCC
 
 # Clear workspace
 rm(list = ls())
