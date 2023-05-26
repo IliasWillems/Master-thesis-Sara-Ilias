@@ -27,7 +27,7 @@ totparl = 2*parl
 parlgamma = parl - 1
 namescoef =  c("beta_{T,0}","beta_{T,1}","alpha_T","lambda_T","beta_{C,0}","beta_{C,1}","alpha_C","lambda_C","sigma_T","sigma_C","rho","theta_1","theta_2")
 
-n <- 1000
+n <- 2000
 iseed <- 123
 Zbin <- 1
 Wbin <- 1
@@ -53,7 +53,7 @@ GOF_EstimateRunDuration(data, B, nruns, Zbin, Wbin, parallel = TRUE)
 nbr_parts_to_evaluate <- 5
 nruns_per_part <- nruns/nbr_parts_to_evaluate
 
-for (part in 1:nbr_parts_to_evaluate) {
+for (part in 3:nbr_parts_to_evaluate) {
   message("Running part ", part, " out of ", nbr_parts_to_evaluate, ".")
   message("")
   
@@ -90,6 +90,14 @@ abline(v = typeIerror_results[["TCM_rejected"]][l], col = "red")
 #             GOF test based on the limiting distribution of T_CM              #
 ################################################################################
 
+# IMPORTANT NOTE:
+# All of the methodology of this section is still in development and DOES NOT
+# WORK PROPERLY. Use the bootstrap version of the goodness-of-fit test instead.
+
+# To further prevent possible confusion, the GOF test based on the limiting 
+# distribution will now throw an error when it is being called. For that reason,
+# the code in this section no longer works.
+
 # 
 # Type-I error of test without bootstrap
 #
@@ -104,7 +112,12 @@ display.plot <- TRUE
 nruns <- 10
 
 # Estimate duration of simulation
-data <- dat.sim.reg(n, parN, iseed, Zbin, Wbin)
+parN = list(beta=c(2.5, 2.6, 1.8, 2),
+            eta=c(1.8, 0.9, 0.5, -2.2),
+            sd=c(1.1, 1, 0.75, 1, 0.5),
+            gamma=c(-1, 0.6, 2.3))
+
+data <- dat.sim.reg.debug(n, parN, iseed, Zbin, Wbin)
 colnames(data) <- c("Y", "delta", "xi", "intercept", "x1", "Z", "W", "realV")
 
 clust <- makeCluster(10)
@@ -214,7 +227,7 @@ iseed <- 768266
 type <- "heteroscedastic"
 nruns <- 500
 B <- 250
-n <- 1000
+n <- 2000
 
 nbr_parts_to_evaluate <- 5
 nruns_per_part <- nruns/nbr_parts_to_evaluate
@@ -284,7 +297,7 @@ n <- 2000
 
 nbr_parts_to_evaluate <- 5
 nruns_per_part <- nruns/nbr_parts_to_evaluate
-for (part in 3:nbr_parts_to_evaluate) {
+for (part in 4:nbr_parts_to_evaluate) {
   message("Running part ", part, " out of 5.")
   message("")
   

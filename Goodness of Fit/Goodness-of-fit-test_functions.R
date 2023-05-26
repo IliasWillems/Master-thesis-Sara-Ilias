@@ -37,9 +37,73 @@ DthetaYJtrans <- function (y, theta) {
   unlist(lapply(y, DthetaYJtrans_elementwise, theta = theta))
 }
 
-gk <- function (x, Y, QK, dQ1) {
-  # sum( ((1-QK)^(-2)*dQ1)[which( (sort(Y) > 0) & (sort(Y) < x) )] )
-  sum( ((1-QK)^(-2)*dQ1)[which(sort(Y) < x)] )
+gk <- function (x, Y, QK, dQ1k.bar) {
+  sum( ((1-QK)^(-2)*dQ1k.bar)[which(sort(Y) < x)] )
+}
+
+dat.sim.reg.debug = function(n,par,iseed,Zbin,Wbin){
+  
+  set.seed(iseed)
+  beta = par[[1]]
+  eta = par[[2]]
+  sd = par[[3]]
+  gamma = par[[4]]
+  
+  # bivariate normal distribution of error terms
+  mu = c(0,0)
+  sigma = matrix(c(sd[1]^2,sd[1]*sd[2]*sd[3], sd[1]*sd[2]*sd[3], sd[2]^2),ncol=2)
+  err = mvrnorm(n, mu =mu , Sigma=sigma)
+  
+  # error T and error C
+  err1 = err[,1]
+  err2 = err[,2]
+  
+  x0 = rep(1,n)  # to keep the intercept
+  
+  x1 = rnorm(n,0,1)
+  
+  if (Wbin==2) { # Bernoulli with p =0.5
+    W = sample(c(0,1), n, replace = TRUE) # sample 0 and 1 with equal probability
+  } else if (Wbin==1) {
+    W = runif(n,0,2) #Uniform[0,2]
+  }
+  
+  XandW=as.matrix(cbind(x0,x1,W)) # W vector
+  
+  if (Zbin==2) {  # nu is standard logistic
+    V=rlogis(n)
+    Z = as.matrix(as.numeric(XandW%*%gamma-V>0))
+    realV=(1-Z)*((1+exp(XandW%*%gamma))*log(1+exp(XandW%*%gamma))-(XandW%*%gamma)*exp(XandW%*%gamma))-Z*((1+exp(-(XandW%*%gamma)))*log(1+exp(-(XandW%*%gamma)))+(XandW%*%gamma)*exp(-(XandW%*%gamma)))
+  } else if (Zbin==1) {# nu is standard normal
+    V=rnorm(n,0,2)
+    Z = XandW%*%gamma+V
+    realV= Z-(XandW%*%gamma)
+  }
+  
+  Mgen = matrix(c(x0,x1,Z,realV),ncol=parl,nrow=n)  # matrix containing all covariates
+  T = IYJtrans(Mgen%*%beta+err1,sd[4]) # model time with real covariates
+  C = IYJtrans(Mgen%*%eta+err2,sd[5]) # model censoring with real covariates
+  A = runif(n,-20,20)
+  
+  par(mfrow = c(1, 3))
+  min_T <- min(T)
+  min_C <- min(C)
+  min_A <- min(A)
+  hist(T, main = paste0("Minimum: ", min_T))
+  hist(C, main = paste0("Minimum: ", min_C))
+  hist(A, main = paste0("Minimum: ", min_A))
+  
+  M = matrix(c(x0,x1,Z,W),ncol=parl,nrow=n)    # data matrix
+  # nr of columns is nr of parameters
+  # nr of rows is sample size
+  
+  Y = pmin(T,C,A) # observed non-transformed time
+  d1 = as.numeric(Y==T) # censoring indicator
+  xi1 = ifelse(Y==T,0,as.numeric(Y==C))
+  data = cbind(Y,d1,xi1,M,realV) # data consisting of observed time,
+  # censoring indicator, all data and the control function
+  
+  return(data)
 }
 
 ################################################################################
@@ -141,7 +205,7 @@ GOF_test_parallel <- function(data, B, iseed, Zbin, Wbin, display.plot) {
   cdf_A = 1 - get_surv_prob(surv_A, Y[order(Y)])
   
   package.vector <- c("MASS", "nloptr", "VGAM", "pbivnorm", "survival")
-  export.vector <- c("parl", "totparl")
+  export.vector <- c("parl", "totparl", "parent_directory")
   TCMb_vector <- foreach(b = 1:B,
                          .packages = package.vector,
                          .export = export.vector,
@@ -438,6 +502,14 @@ GOF_SimulationMisspecification <- function(type, par, nruns, B, iseed, Zbin, Wbi
 GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation_size, 
                                  display.plot) {
   
+  # Since this method still doesn't work as it should, throw an error an error
+  # every time it is used. We leave the code below so that it can be fixed at a
+  # later moment in time.
+  
+  stop(paste0("The goodness-of-fit test based on the limiting distribution is ",
+              "not (yet) correctly implemented. Use the bootstrap version ",
+              "instead"))
+  
   verbose <- TRUE # Maybe add this as extra functionality later
   doParallel <- TRUE # Maybe add this as extra functionality later
   
@@ -450,7 +522,7 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
   
   #### Estimate gamma and delta and useful vectors/matrices of derivatives ####
   
-  Y = exp(data[,1])
+  Y = data[,1]
   Delta = data[,2]
   Xi = data[,3]
   X = data[,(5:(parl+1))]
@@ -544,6 +616,7 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       newrow<-sumsecder[c(i,(i+2):(i+parlgamma))]
       WM<-rbind(WM,newrow) 
     }
+    WM <- (2/n)*WM
     
     # Inverse of M-matrix
     # WMI here -> M^{-1} in paper
@@ -553,7 +626,15 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
     mi = c()
     
     for(i in 1:n){
-      newrow <- V[i]%*%XandW[i,]
+      
+      ##########################################################################
+      # For debugging: Use realV instead of V here
+      
+      # newrow <- 2*V[i]%*%XandW[i,]
+      warning("This method used realV (for debugging)")
+      newrow <- 2*realV[i]%*%XandW[i,]
+      
+      ##########################################################################
       mi = rbind(mi,newrow)
     }
     
@@ -568,6 +649,7 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       newrow<-secder[c(i,(i+2):(i+parlgamma))]
       WM<-rbind(WM,newrow) 
     }
+    WM <- (2/n)*WM
     
     # WMI here -> M^{-1} in paper
     WMI = ginv(WM)
@@ -578,7 +660,7 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
     mi = c()
     
     for(i in 1:n){
-      newrow<-diffvec[i,]%*%XandW[i,]
+      newrow <- 2*diffvec[i,]%*%XandW[i,]
       mi = rbind(mi,newrow)
     }
     
@@ -619,7 +701,7 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
   Omega_delta <- - HI %*% (gi + Vargamma %*% psii)
   
   # Asymptotic linear representation of \gamma
-  Omega_gamma <- -WMI %*% mi
+  Omega_gamma <- psii
   
   # Compute the cumulative density of K according to our two-step model
   FK <- rep(0, n)
@@ -638,10 +720,51 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
   # Compute the censoring distribution of K
   A_cens_ind <- as.numeric((Delta == 0) & (Xi == 0))
   surv_A <- survfit(Surv(Y, A_cens_ind) ~ 1, type = "kaplan-meier")
-  GK = 1 - get_surv_prob(surv_A, sort(Y))
+  GK <- 1 - get_surv_prob(surv_A, sort(Y))
   
   # Compute QK (useful when computing \Omega_{KM})
   QK <- 1 - (1 - FK) * (1 - GK)
+  
+  ##############################################################################
+  # For debugging: also create the 'true' FK, i.e. using the true parameters. Do
+  # the same for GK and QK.
+  
+  Y_trans_theta1_true <- YJtrans(Y, parN[["sd"]][4])
+  Y_trans_theta2_true <- YJtrans(Y, parN[["sd"]][5])
+  
+  # Compute the cumulative density of K according to our two-step model
+  FK_true <- rep(0, n)
+  for (j in 1:n) {
+    
+    # Vector of arguments of first term and second term
+    arg1_vector <- (Y_trans_theta1_true[j] - M %*% parN[["beta"]])/parN[["sd"]][1]
+    arg2_vector <- (Y_trans_theta2_true[j] - M %*% parN[["eta"]])/parN[["sd"]][2]
+    
+    # Evaluate them in standard normal CDF, and compute the average
+    FK_true[j] <- sum(pnorm(arg1_vector) + pnorm(arg2_vector) -
+                        pbivnorm(cbind(arg1_vector, arg2_vector), rho = parN[["sd"]][3]))/n
+  }
+  FK_true <- FK_true[order(FK_true)]
+  
+  par(mfrow = c(1, 1))
+  plot(sort(Y), FK_true, type = 'l')
+  lines(sort(Y), FK, type = "l", col = 'red')
+  # Basically the same
+  
+  # Compute the censoring distribution of K. A ~ unif(-20, 20)
+  GK_true <- pmax(0, sort(Y)/40 + 0.5)
+  
+  par(mfrow = c(1, 1))
+  plot(surv_A)
+  lines(sort(Y), 1 - GK_true, type = 'l', col = 'red')
+  
+  QK_true <- 1 - (1 - FK_true) * (1 - GK_true)
+  
+  plot(sort(Y), QK_true, type = 'l')
+  lines(sort(Y), QK, type = 'l', col = 'red')
+  # Some slightly larger differences but still not too much
+  
+  ##############################################################################
 
   #### Obtain expression for W_n(k) ####
 
@@ -661,6 +784,10 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
     Omegas <- rep(0, n)
     Omegas_KM <- rep(0, n)
     Omegas_2step <- rep(0, n)
+    Omegas_EDF <- rep(0, n)
+    
+    Omegas_KM_true <- rep(0, n)
+    
     
     ##### Precompute E[J(k; \gamma^*, \delta^*)] #####
     
@@ -699,15 +826,15 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       J[,i] <- c(JTi, JCi, 0) - JTCi
     }
     
-    EJ = rowMeans(J)
+    EJ <- rowMeans(J)
     
     ##### Also precompute E[\Phi(...) + \Phi(...) - \Phi(..., ...)] #####
     
     # In the process, we will store intermediate results so we can use them
     # later on.
-    Phi_T <- rep(0, n)
-    Phi_C <- rep(0, n)
-    Phi_TC <- rep(0, n)
+    Phi_T_k <- rep(0, n)
+    Phi_C_k <- rep(0, n)
+    Phi_TC_k <- rep(0, n)
     
     for (i in 1:n) {
       tauT <- parhat[1] + as.matrix(X)[i,]%*%parhat[2:(parl-2)] + Z[i]*parhat[parl-1] +
@@ -718,14 +845,17 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
         Z[i]*parhat[totparl-1] + V[i]*parhat[totparl]
       tauC <- as.numeric(tauC)
       
-      Phi_T[i] <- pnorm( (Y_trans_theta1 - tauT)/parhat[totparl + 1])
-      Phi_C[i] <- pnorm( (Y_trans_theta2 - tauC)/parhat[totparl + 2])
-      Phi_TC[i] <- pnorm2d((Y_trans_theta1[i] - tauT)/parhat[totparl+1],
-                           (Y_trans_theta2[i] - tauC)/parhat[totparl+2],
-                           rho = parhat[totparl + 3])
+      k_trans_theta1 <- YJtrans(k, parhat[totparl + 4])
+      k_trans_theta2 <- YJtrans(k, parhat[totparl + 5])
+      
+      Phi_T_k[i] <- pnorm( (k_trans_theta1 - tauT)/parhat[totparl + 1])
+      Phi_C_k[i] <- pnorm( (k_trans_theta2 - tauC)/parhat[totparl + 2])
+      Phi_TC_k[i] <- pnorm2d((k_trans_theta1 - tauT)/parhat[totparl + 1],
+                             (k_trans_theta2 - tauC)/parhat[totparl + 2],
+                             rho = parhat[totparl + 3])
     }
     
-    EPhi <- (1/n)*(sum(Phi_T) + sum(Phi_C) - sum(Phi_TC))
+    EPhi_k <- (1/n)*(sum(Phi_T_k) + sum(Phi_C_k) - sum(Phi_TC_k))
     
     ##### For each observation S_i, compute \Omega(k; S_i) #####
     
@@ -739,17 +869,6 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       
       FK.k <- stepfun(sort(Y), c(0, FK))(k)
       
-      # For debugging: use the true distribution of (T,C)
-      # sd_T <- 1.1
-      # sd_C <- 1.4
-      # rho <- 0.75
-      
-      # mu = c(0,0)
-      # sigma = matrix(c(sd_T^2, sd_T*sd_C*rho, sd_T*sd_C*rho, sd_C^2), ncol=2)
-      # err = mvrnorm(n, mu=mu , Sigma=sigma)
-      
-      # Omega_KM <- (1 - FK.k)*(gk(min(k, sort(Y)[i]), Y, QK, dQ1k.bar) + 
-      #                            ifelse((sort(Y)[i] <= k) & (Delta[order(Y)][i] + Xi[order(Y)][i] == 1), 1/(1 - QK[i]), 0))
       Omega_KM <- (1 - FK.k)*(gk(min(k, Y[i]), Y, QK, dQ1k.bar) + 
                                 ifelse((Y[i] <= k) & (Delta[i] + Xi[i] == 1),
                                        1/(1 - QK[which(sort(Y) == Y[i])]),
@@ -757,17 +876,17 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       
       ###### Computations for Omega_EDF ######
       
-      Omega_EDF <- (Phi_T[i] + Phi_C[i] - Phi_TC[i]) - EPhi
+      Omega_EDF <- (Phi_T_k[i] + Phi_C_k[i] - Phi_TC_k[i]) - EPhi_k
       
       ##### Compute Omega #####
       Omegas[i] <- Omega_2step - Omega_KM + Omega_EDF
       
       Omegas_KM[i] <- Omega_KM
       Omegas_2step[i] <- Omega_2step
-      Omega_EDF[i] <- Omega_EDF
+      Omegas_EDF[i] <- Omega_EDF
     }
     
-    list(Omegas, Omegas_2step, Omegas_KM, Omega_EDF)
+    list(Omegas, Omegas_2step, Omegas_KM, Omegas_EDF)
   }
   
   #### Estimate variance of W_n(k) for a range of k ####
@@ -801,13 +920,13 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       # Compute Q1(k) and dQ1
       Q1k <- rep(0, n)
       for (j in 1:n) {
-        Q1k[j] <- sum(Y < sort(Y)[j] & Delta + Xi == 1)/n
+        Q1k[j] <- sum( (Y < sort(Y)[j]) & (Delta + Xi == 1) )/n
       }
       Q1k.bar <- 1 - Q1k
       
       dQ1k.bar <- rep(0, n)
       dQ1k.bar[1] <- 1 - Q1k.bar[1]
-      dQ1k.bar[2:n] = Q1k.bar[2:n] - Q1k.bar[1:(n-1)]
+      dQ1k.bar[2:n] <- Q1k.bar[2:n] - Q1k.bar[1:(n-1)]
       
       # Compute estimate of variance of W_n(k). The computation of the mean is not
       # necessary since we know it will be zero theoretically.
@@ -816,14 +935,15 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
       
       # Since we know the mean will be zero, we can estimate the variance slightly more
       # accurately
-      var.Omegas <- (1/length(Omegas))*sum(Omegas^2)
+      var.Omegas <- (1/n)*sum(Omegas^2)
       
       # For debugging
-      var.Omegas_2step <- (1/length(all_Omegas[[2]]))*sum(all_Omegas[[2]]^2)
-      var.Omegas_KM <- (1/length(all_Omegas[[3]]))*sum(all_Omegas[[3]]^2)
-      var.Omegas_EDF <- (1/length(all_Omegas[[4]]))*sum(all_Omegas[[4]]^2)
+      var.Omegas_2step <- (1/n)*sum(all_Omegas[[2]]^2)
+      var.Omegas_KM <- (1/n)*sum(all_Omegas[[3]]^2)
+      var.Omegas_EDF <- (1/n)*sum(all_Omegas[[4]]^2)
       
-      c(mean(Omegas), var.Omegas, var.Omegas_2step, var.Omegas_KM, var.Omegas_EDF)
+      c(mean(Omegas), var.Omegas, var.Omegas_2step, var.Omegas_KM, var.Omegas_EDF,
+        sum(Omegas))
     }
     
     mean_k <- mean_var_estimates[,1]
@@ -832,6 +952,8 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
     var_k.2step <- mean_var_estimates[,3]
     var_k.KM <- mean_var_estimates[,4]
     var_k.EDF <- mean_var_estimates[,5]
+    
+    sum_Omegas_k <- mean_var_estimates[,6]
     
   } else {
     
@@ -890,16 +1012,32 @@ GOF_test_noBootstrap <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation
   plot(k_range, var_k.KM)
   plot(k_range, var_k.EDF)
   
-  # cov matrix package (vcov.coxph)
+  par(mfrow = c(1, 1))
   
-  # Plot the estimate of the st. dev. of the KM curve according to the survfit-
-  # function and our theoretical result. The curves clearly don't match.
-  par(mfrow = c(1, 2))
-  KM <- survfit(Surv(Y, Delta + Xi) ~ 1, type = "kaplan-meier")
-  plot(sort(Y), KM$std.err)
-  plot(log(k_range), sqrt(var_k.KM)/sqrt(n))
+  # Would it be okay to ignore covariances?
+  plot(k_range, var_k, ylim = c(0, 1), type = 'l', lwd = 2)
+  lines(k_range, var_k.2step + var_k.KM + var_k.EDF, type = 'l', col = 'red',
+        lwd = 2)
+  legend("topleft", legend = c("total variance", "sum of comp. var."),
+         col = c("black", "red"), lwd = 2)
+  # Yes, approximately
+  
+  # Test if F_K(k) - F_KM(k) = (1/n) sum(\Omega)
+  K_delta <- as.numeric((Delta == 1) | (Xi == 1)) # Censoring indicator for K = min(T,C)
+  surv_km <- survfit(Surv(Y, K_delta) ~ 1, type = "kaplan-meier")
+  cdf_km <- 1 - get_surv_prob(surv_km, sort(Y))
   
   par(mfrow = c(1, 1))
+  plot(sort(Y), FK, type = 'l')
+  lines(sort(Y), cdf_km, type = 's', col = "red")
+  legend("topleft", legend = c("Estimated model", "Kaplan-Meier"),
+         col = c("black", "red"), lty = 1)
+  
+  par(mfrow = c(1, 1))
+  plot(sort(Y), (FK - cdf_km)^2, type = 'l', ylim = c(0, 10^(-3)))
+  lines(k_range, sum_Omegas_k^2 / n, type = 'l', col = 'red')
+  
+  plot(k_range, sum_Omegas_k^2 / n, type = 'l', col = 'red')
 
   ##############################################################################
   
@@ -1023,516 +1161,6 @@ GOF_SimulationNoBootstrap_typeIerror <- function(parN, nruns, iseed, Zbin, Wbin,
     
     out <- GOF_test_noBootstrap(data, Zbin, Wbin, k_range_size, ltcm_estimation_size, 
                                 display.plot)
-    
-    if (out[[1]] > out[[4]]) {
-      nbr_rejections_90 <- nbr_rejections_90 + 1
-    }
-    
-    if (out[[1]] > out[[5]]) {
-      nbr_rejections_95 <- nbr_rejections_95 + 1
-    }
-    
-    differences[run] <- out[[1]] - mean(out[[2]])
-  }
-  
-  filename <- paste0("typeIerror_iseed", iseed, "_nruns", nruns, ".csv")
-  filename2 <- paste0("differences_iseed", iseed, "_nruns", nruns, ".csv")
-  folder <- paste0("TypeIerror/TypeIerrorAsymptotic_n", n)
-  
-  # If folder doesn't exist, create it.
-  if (!file.exists(folder)) {
-    dir.create(folder)
-  }
-  
-  write.csv(c(nbr_rejections_90/nruns, nbr_rejections_95/nruns), file = paste0(folder, "/", filename))
-  write.csv(differences, file = paste0(folder, "/", filename2))
-  
-  if (display.plot) {
-    par(mfrow = c(1, 1))
-    hist(differences, main = "E[T_{CM} - T^*_{CM}]")
-  }
-  
-  data.frame("prop. reject90" = nbr_rejections_90/nruns, "prop. reject95" = nbr_rejections_95/nruns)
-}
-
-
-################################################################################
-#                         Beta versions of functions                           #
-################################################################################
-
-
-GOF_test_noBootstrap_2 <- function(data, Zbin, Wbin, k_range_size, ltcm_estimation_size, 
-                                   display.plot) {
-  
-  verbose <- TRUE # Maybe add this as extra functionality later
-  doParallel <- TRUE # Definitely add this as extra functionality later
-  
-  if ((Zbin != 1 && Zbin != 2) && (Wbin != 1 && Wbin !=2) ) {
-    stop("Invalid input")
-  }
-  
-  if (Zbin == 2) {
-    stop("Not implemented yet")
-  }
-  
-  #### Estimate gamma and delta and useful vectors/matrices of derivatives ####
-  
-  Y = data[,1]
-  Delta = data[,2]
-  Xi = data[,3]
-  X = data[,(5:(parl+1))]
-  Z = data[,parl+2]
-  W = data[,parl+3]
-  realV <- data[,parl+4]
-  XandW = cbind(data[,4],X,W)
-  n <- length(Y)
-  
-  if (Zbin == 1) {
-    lin.mod <- lm(Z ~ X + W)
-    gammaest <- lin.mod$coefficients
-    V <- lin.mod$residuals
-    
-    res.error.var <- (1/(n-3))*sum(lin.mod$residuals^2)
-    fisher.info.inv <- res.error.var * ginv(t(XandW) %*% XandW)
-    
-  } else {
-    gammaest <- nloptr(x0=rep(0,parlgamma),eval_f=LikGamma2,Y=Z,M=XandW,lb=c(rep(-Inf,parlgamma)),ub=c(rep(Inf,parlgamma)),
-                       eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-    V <- (1-Z)*((1+exp(XandW%*%gammaest))*log(1+exp(XandW%*%gammaest))-(XandW%*%gammaest)*exp(XandW%*%gammaest))-Z*((1+exp(-(XandW%*%gammaest)))*log(1+exp(-(XandW%*%gammaest)))+(XandW%*%gammaest)*exp(-(XandW%*%gammaest)))
-  }
-  
-  M = cbind(data[,4:(2+parl)],V)
-  
-  MnoV = data[,4:(3+parl)]
-  
-  init = c(rep(0,totparl), 1, 1, init.value.theta_1, init.value.theta_2)
-  parhat1 = nloptr(x0=c(init),eval_f=LikI,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5, 0,0),ub=c(rep(Inf,totparl),Inf,Inf, 2,2),
-                   eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-  
-  
-  initd <-  c(parhat1[-length(parhat1)],parhat1[length(parhat1)-1],parhat1[length(parhat1)])
-  initd[length(initd) - 2] <- 0
-  # structure of 'initd':
-  #
-  # [1:4] beta (4 params) = First 4 params of parhat1
-  # [5:8] eta (4 params) = Next 4 params of parhat1
-  # [9]   sigma1 = parhat1[9]
-  # [10]  sigma2 = parhat1[10]
-  # [11]  rho = 0
-  # [12]  theta_1 = parhat1[11]
-  # [13]  theta_2 = parhat1[12]
-  
-  parhat = nloptr(x0=initd,eval_f=LikF,Y=Y,Delta=Delta,Xi=Xi,M=M,lb=c(rep(-Inf,totparl),1e-05,1e-5,-0.99,0,0),ub=c(rep(Inf,totparl),Inf,Inf,0.99,2,2),
-                  eval_g_ineq=NULL,opts = list(algorithm = "NLOPT_LN_BOBYQA","ftol_abs"=1.0e-30,"maxeval"=100000,"xtol_abs"=rep(1.0e-30)))$solution
-  
-  parhatG = c(parhat,as.vector(gammaest))
-  # - beta (4 params) = First 4 params of parhat
-  # - eta (4 params) = Next 4 params of parhat
-  # - sigma1 = parhat[9]
-  # - sigma2 = parhat[10]
-  # - rho = parhat[11]
-  # - theta_1 = parhat[12]
-  # - theta_2 = parhat[13]
-  # - gamma = (intercept, gamma_X, gamma_W)
-  
-  # Hgamma here -> H in paper
-  if (Zbin == 1) {
-    Hgamma = hessian(LikFG1,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
-  } else if (Zbin == 2) {
-    Hgamma = hessian(LikFG2,parhatG,Y=Y,Delta=Delta,Xi=Xi,M=MnoV,method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE)) 
-  }
-  
-  # H here -> H_\delta in paper
-  H = Hgamma[1:length(initd),1:length(initd)]
-  
-  # HI here -> Inverse of H_\delta in paper
-  HI = ginv(H)
-  
-  # All derivatives with respect to a parameter of \delta AND \gamma.
-  # Vargamma here -> H_\gamma in paper
-  Vargamma = Hgamma[1:length(initd),(length(initd)+1):(length(initd)+parlgamma)]
-  
-  prodvec = XandW[,1]
-  
-  for (i in 1:parlgamma) {
-    for (j in 2:parlgamma) {
-      if (i<=j){
-        prodvec <- cbind(prodvec, XandW[,i]*XandW[,j])
-      }
-    }
-  }
-  
-  if (Zbin == 1) {
-    sumsecder = c(rep(0,ncol(prodvec)))
-    for (i in 1:length(sumsecder)) {
-      sumsecder[i]= -sum(prodvec[,i])
-    }
-    
-    # M-matrix: second derivative of m(W,Z,gamma)
-    # WM here -> M in paper
-    WM = sumsecder[1:parlgamma]
-    for (i in 2:parlgamma) {
-      newrow<-sumsecder[c(i,(i+2):(i+parlgamma))]
-      WM<-rbind(WM,newrow) 
-    }
-    
-    # Inverse of M-matrix
-    # WMI here -> M^{-1} in paper
-    WMI = ginv(WM)
-    
-    # mi here -> h_m(W, Z, \gamma^*) in paper
-    mi = c()
-    
-    for(i in 1:n){
-      newrow <- V[i]%*%XandW[i,]
-      mi = rbind(mi,newrow)
-    }
-    
-    mi <- t(mi)
-    
-  } else if (Zbin == 2) {
-    secder=t(-dlogis(XandW%*%gammaest))%*%prodvec
-    
-    # WM here -> M in paper
-    WM = secder[1:parlgamma]
-    for (i in 2:parlgamma) {
-      newrow<-secder[c(i,(i+2):(i+parlgamma))]
-      WM<-rbind(WM,newrow) 
-    }
-    
-    # WMI here -> M^{-1} in paper
-    WMI = ginv(WM)
-    
-    diffvec = Z-plogis(XandW%*%gammaest)
-    
-    # mi here -> h_m(W, Z, \gamma^*) in paper
-    mi = c()
-    
-    for(i in 1:n){
-      newrow<-diffvec[i,]%*%XandW[i,]
-      mi = rbind(mi,newrow)
-    }
-    
-    mi <- t(mi)
-  }
-  
-  # psii here -> \Psi in paper
-  psii = -WMI%*%mi
-  
-  # gi here -> h_l(S_i, gamma, delta) in paper
-  gi = c()
-  
-  for (i in 1:n)
-  {
-    J1 = jacobian(LikF,parhat,Y=Y[i],Delta=Delta[i],Xi=Xi[i],M=t(M[i,]),method="Richardson",method.args=list(eps=1e-4, d=0.0001, zer.tol=sqrt(.Machine$double.eps/7e-7), r=6, v=2, show.details=FALSE))
-    gi = rbind(gi,c(J1))
-  }
-  
-  gi = t(gi)
-  
-  # Computation of \Sigma_\delta:
-  
-  # h_l(S, gamma, delta) + H_\gamma %*% Psi
-  partvar = gi + Vargamma%*%psii
-  
-  # E[(h_l(S, gamma, delta) + H_\gamma %*% Psi)(h_l(S, gamma, delta) + H_\gamma %*% Psi)^T]
-  Epartvar2 = (partvar%*%t(partvar))
-  
-  # H_\delta^{-1} E[...] (H_\delta^{-1})^T
-  totvarex = HI%*%Epartvar2%*%t(HI)
-  
-  #### Some useful variables, functions, etc. ####
-  
-  Y_trans_theta1 <- YJtrans(Y, parhat[totparl+4])
-  Y_trans_theta2 <- YJtrans(Y, parhat[totparl+5])
-  
-  # Asymptotic linear representation of \delta
-  Omega_delta <- - HI %*% (gi + Vargamma %*% psii)
-  
-  # Asymptotic linear representation of \gamma
-  if (Zbin == 1) {
-    Omega_gamma <- matrix(rep(0, 3*n), nrow = 3)
-    for (i in 1:n) {
-      Omega_gamma[,i] <- fisher.info.inv %*% (V[i]/res.error.var * c(1, X[i], W[i]))
-    }
-  }
-  
-  # Compute the cumulative density of K according to our two-step model
-  FK <- rep(0, n)
-  for (j in 1:n) {
-    
-    # Vector of arguments of first term and second term
-    arg1_vector <- (Y_trans_theta1[j] - M %*% parhat[1:parl])/parhat[totparl+1]
-    arg2_vector <- (Y_trans_theta2[j] - M %*% parhat[(parl+1):totparl])/parhat[totparl+2]
-    
-    # Evaluate them in standard normal CDF, and compute the average
-    FK[j] <- sum(pnorm(arg1_vector) + pnorm(arg2_vector) -
-                   pbivnorm(cbind(arg1_vector, arg2_vector), rho = parhat[totparl+3]))/n
-  }
-  FK <- FK[order(FK)]
-  
-  # Compute the censoring distribution of K
-  A_cens_ind <- as.numeric((Delta == 0) & (Xi == 0))
-  surv_A <- survfit(Surv(Y, A_cens_ind) ~ 1, type = "kaplan-meier")
-  GK = 1 - get_surv_prob(surv_A, sort(Y))
-  
-  # Compute QK (useful when computing \Omega_{KM})
-  QK <- 1 - (1 - FK) * (1 - GK)
-  
-  #### Obtain expression for W_n(k) ####
-  
-  Omega_deltaT <- rbind(Omega_delta[c(totparl+4, 1:parl, totparl+1),], Omega_gamma)
-  Omega_deltaC <- rbind(Omega_delta[c(totparl+5, (parl+1):(totparl), totparl+2),], Omega_gamma)
-  Omega_deltarho <- Omega_delta[totparl+3,]
-  
-  tilde_Omega_delta <- rbind(Omega_deltaT,
-                             Omega_deltaC,
-                             Omega_deltarho)
-  
-  if (Zbin == 1) {
-    partial.g.gamma <- -t(XandW)
-  }
-  
-  Omega_vct <- function(k, dQ1, parl, totparl, n, partial.g.gamma) {
-    
-    Omegas <- rep(0, n)
-    Omegas_KM <- rep(0, n)
-    Omegas_2step <- rep(0, n)
-    for (i in 1:n) {
-      ##### Computations for Omega_2step #####
-      
-      tauT <- parhat[1] + as.matrix(X)[i,]%*%parhat[2:(parl-2)] + Z[i]*parhat[parl-1] +
-        V[i]*parhat[parl]
-      tauT <- as.numeric(tauT)
-      
-      tauC <- parhat[parl+1] + as.matrix(X)[i,]%*%parhat[(parl+2):(totparl-2)] +
-        Z[i]*parhat[totparl-1] + V[i]*parhat[totparl]
-      tauC <- as.numeric(tauC)
-      
-      JTi_tilde <- (1/parhat[totparl+1])*c(DthetaYJtrans(k, parhat[totparl + 4]),
-                                           -XandW[i,1:(parl-2)],
-                                           -Z[i],
-                                           -V[i],
-                                           -(Y_trans_theta1[i] - tauT)/parhat[totparl+1],
-                                           -parhat[parl]*partial.g.gamma[,i])
-      JTi <- dnorm((Y_trans_theta1[i] - tauT)/parhat[totparl+1])*JTi_tilde
-      
-      JCi_tilde <- (1/parhat[totparl+2])*c(DthetaYJtrans(k, parhat[totparl + 5]),
-                                           -XandW[i,1:(parl-2)],
-                                           -Z[i],
-                                           -V[i],
-                                           -(Y_trans_theta2[i] - tauC)/parhat[totparl+2],
-                                           -parhat[totparl]*partial.g.gamma[,i])
-      JCi <- dnorm((Y_trans_theta2[i] - tauC)/parhat[totparl+2])*JCi_tilde
-      
-      JTCi_tilde <- c(JTi_tilde, JCi_tilde, 1)
-      JTCi <- pnorm2d((Y_trans_theta1[i] - tauT)/parhat[totparl+1],
-                      (Y_trans_theta2[i] - tauC)/parhat[totparl+2],
-                      rho = parhat[totparl + 3]) * JTCi_tilde
-      
-      Ji <- c(JTi, JCi, 0) + JTCi
-      
-      Omega_2step <- t(Ji) %*% tilde_Omega_delta[,i]
-      
-      ##### Computations for Omega_KM #####
-      
-      FK.k <- stepfun(sort(Y), c(0, FK))(k)
-      Omega_KM <- (1 - FK.k)*(gk(min(k, sort(Y)[i]), Y, QK, dQ1) + 
-                                ifelse((sort(Y)[i] < k) & (Delta[order(Y)][i] + Xi[order(Y)][i] == 1), 1/(1 - QK[i]), 0))
-      # Omega_KM <- (1 - FK[i])*(gk(min(k, sort(Y)[i]), Y, QK, dQ1))
-      ##### Computations for Omega_EDF #####
-      
-      # Since we would have to estimate the integral wrt Z and w again in the same
-      # way, it can be seen that Omega_EDF(k; S_i, \gamma^*, \delta^*) is equal to 0.
-      Omega_EDF <- 0
-      
-      ##### Compute Omega #####
-      Omegas[i] <- Omega_2step - Omega_KM + Omega_EDF
-      
-      Omegas_KM[i] <- Omega_KM
-      Omegas_2step[i] <- Omega_2step
-    }
-    
-    list(Omegas, Omegas_2step, Omegas_KM)
-  }
-  
-  #### Estimate variance of W_n(k) for a range of k ####
-  
-  # Set value for U (= infimum of right end points of event and censoring
-  # distributions of K)
-  U <- min(max(Y[Delta == 1 | Xi == 1]), max(Y[Delta == 0 & Xi == 0]))
-  
-  K_RANGE_SIZE <- k_range_size
-  
-  # Determine range of k values in a data driven way
-  k_range <- quantile(Y, seq(0, (K_RANGE_SIZE - 1))/(K_RANGE_SIZE - 1))
-  
-  if (doParallel) {
-    if (!getDoParRegistered()) {
-      message("No parallel backend registered. Continuing with sequential approach.")
-      doParallel <- FALSE
-    }
-  }
-  
-  if (doParallel) {
-    export.vector <- c("K_RANGE_SIZE", "parl", "totparl")
-    package.vector <- c("fMultivar")
-    mean_var_estimates <- foreach(i = 1:K_RANGE_SIZE,
-                                  .packages = package.vector,
-                                  .export = export.vector,
-                                  .combine = 'rbind') %dopar% {
-                                    source("Goodness-of-fit-test_functions.R")
-                                    k <- k_range[i]
-                                    
-                                    # Compute Q1(k) and dQ1
-                                    Q1 <- 1 - cumsum((Y[order(Y)] < k) & (Delta[order(Y)] + Xi[order(Y)] == 1))/n
-                                    dQ1 = rep(0,n)
-                                    dQ1[1] = 1 - Q1[1]
-                                    dQ1[2:n] = Q1[2:n]-Q1[1:(n-1)]
-                                    
-                                    # Compute estimate of variance of W_n(k). The computation of the mean is not
-                                    # necessary since we know it will be zero theoretically.
-                                    Omegas <- Omega_vct(k, dQ1, parl, totparl, n, partial.g.gamma)[[1]]
-                                    
-                                    # Since we know the mean will be zero, we can estimate the variance slightly more
-                                    # accurately
-                                    var.Omegas <- (1/n)*sum(Omegas^2)
-                                    
-                                    c(mean(Omegas), var.Omegas)
-                                  }
-    
-    mean_k <- mean_var_estimates[,1]
-    var_k <- mean_var_estimates[,2]
-    
-  } else {
-    
-    mean_k <- rep(0, K_RANGE_SIZE)
-    var_k <- rep(0, K_RANGE_SIZE)
-    
-    for (i in 1:K_RANGE_SIZE) {
-      if ((i %% (K_RANGE_SIZE/10) == 0) & verbose) {
-        message("Estimating variance: ", i/K_RANGE_SIZE*100, "% completion")
-      }
-      k <- k_range[i]
-      
-      # Compute Q1(k) and dQ1
-      Q1 <- 1 - cumsum((Y[order(Y)] < k) & (Delta[order(Y)] + Xi[order(Y)] == 1))/n
-      dQ1 = rep(0,n)
-      dQ1[1] = 1 - Q1[1]
-      dQ1[2:n] = Q1[2:n]-Q1[1:(n-1)]
-      
-      # Compute estimate of variance of W_n(k). The computation of the mean is not
-      # necessary since we know it will be zero theoretically.
-      Omegas <- Omega_vct(k, dQ1)[[1]]
-      mean_k[i] <- mean(Omegas)
-      var_k[i] <- var(Omegas)
-    }
-  }
-  
-  # For debugging
-  par(mfrow = c(1, 2))
-  plot(k_range, mean_k)
-  plot(k_range, var_k)
-  
-  #### Estimate distribution of LTCM ####
-  
-  # Compute dFK
-  dFK = rep(0,n)
-  dFK[1] = FK[1]
-  dFK[2:n] = FK[2:n]-FK[1:(n-1)]
-  
-  # Compute LTCM
-  LTCM_ESTIMATION_SIZE <- ltcm_estimation_size
-  
-  Wk <- matrix(nrow = LTCM_ESTIMATION_SIZE, ncol = n)
-  for (i in 1:n) {
-    # Since we do not compute the variance in each of the observed time points,
-    # we will interpolate them.
-    
-    if (sort(Y)[i] > max(k_range)) {
-      
-      sd <- sqrt(var_k[K_RANGE_SIZE])
-      
-    } else if (sort(Y)[i] %in% k_range) {
-      
-      sd <- var_k[which(k_range == sort(Y)[i])]
-      
-    } else {
-      
-      # Find between which values of k the i'th ordered time lies
-      k_range_prev_idx <- max(which(k_range <= sort(Y)[i]))
-      k_range_next_idx <- min(which(k_range >= sort(Y)[i]))
-      
-      # Interpolate between estimated variances
-      points <- data.frame(y = c(var_k[k_range_prev_idx], var_k[k_range_next_idx]),
-                           x = c(k_range[k_range_prev_idx], k_range[k_range_next_idx]))
-      
-      # Make a prediction for the standard deviation at sort(Y)[i]
-      sd <- sqrt(approx(points$x, points$y, xout = sort(Y)[i])$y)
-    }
-    
-    Wk[,i] <- rnorm(n = LTCM_ESTIMATION_SIZE, mean = 0, sd = sd)
-  }
-  
-  LTCM_estimates <- rep(0, LTCM_ESTIMATION_SIZE)
-  for (i in 1:LTCM_ESTIMATION_SIZE) {
-    LTCM_estimates[i] <- sum((Wk[i,])^2 * weight_fun(sort(Y), U) * dFK)
-  }
-  
-  #### Compute test statistic ####
-  
-  # Useful when computing the CM-statistic later on. In a sense, it can be seen to
-  # replace dF_K.
-  w = rep(0,n)
-  w[1] = FK[1]
-  w[2:n] = FK[2:n]-FK[1:(n-1)]
-  
-  # Also compute the cumulative distribution function based on KM-estimator
-  K_delta <- as.numeric((Delta == 1) | (Xi == 1)) # Censoring indicator for K = min(T,C)
-  surv_km <- survfit(Surv(Y, K_delta) ~ 1, type = "kaplan-meier")
-  cdf_km <- 1 - get_surv_prob(surv_km, sort(Y))
-  
-  if (display.plot) {
-    par(mfrow = c(1, 2))
-    plot(sort(Y), FK, type = 'l', main = "Comparison of estimated model with KM",
-         xlab = "K = min(T,C)", ylab = "F(K)")
-    lines(sort(Y), cdf_km, type = 's', col = "red")
-    legend("topleft", legend = c("Estimated model", "Kaplan-Meier"),
-           col = c("black", "red"), lty = 1)
-  }
-  
-  # Compute the Cramer - von Mises statistic
-  TCM <- n*sum((cdf_km - FK)^2 * weight_fun(sort(Y), U) * w)
-  
-  if (display.plot) {
-    hist(LTCM_estimates, main = "Histogram of LT_CM")
-    abline(v = TCM, col = 'red')
-  }
-  
-  #### Do inference ####
-  
-  pvalue <- sum(LTCM_estimates > TCM)/LTCM_ESTIMATION_SIZE
-  q90 <- quantile(LTCM_estimates, 0.90)
-  q95 <- quantile(LTCM_estimates, 0.95)
-  
-  list(TCM, LTCM_estimates, pvalue, q90, q95)
-}
-
-
-GOF_SimulationNoBootstrap_typeIerror_2 <- function(parN, nruns, iseed, Zbin, Wbin,
-                                                   display.plot) {
-  
-  nbr_rejections_90 <- 0
-  nbr_rejections_95 <- 0
-  differences <- rep(0, nruns)
-  for (run in 1:nruns) {
-    message("\n" , "Starting run ", run, "\n")
-    run_seed <- iseed + run
-    
-    data <- dat.sim.reg(n, parN, run_seed, Zbin, Wbin)
-    
-    out <- GOF_test_noBootstrap_2(data, Zbin, Wbin, k_range_size, ltcm_estimation_size, 
-                                  display.plot)
     
     if (out[[1]] > out[[4]]) {
       nbr_rejections_90 <- nbr_rejections_90 + 1

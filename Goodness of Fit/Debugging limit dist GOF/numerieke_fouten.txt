@@ -1,0 +1,9 @@
+Beste Prof. Van Keilegom,
+
+Na lang te hebben gezocht naar de fout in de (code van de) limiterende verdeling van de goodness-of-fit test en nog steeds weinig gevonden te hebben denk ik dat ik met oog op de komende examenperiode niet meer verder zal zoeken. Mijn beste gok op dit moment van wat er mis zou kunnen zijn is dat de methode heel gevoelig is aan het feit dat we geschatte parameters gebruiken in de code waar er eigenlijk populatieparameters moeten staan (bv. een sample mean ipv de echte verwachte waarde, of de geschatte parameter gamma ipv de echte parameter).
+
+Moet ik hierover ook iets moet zeggen in de thesis (bv: "We tried implementing this asymptotic test in R but that proved really difficult. Therefore we only show the theoretical result here.") of laat ik het gewoon volledig achterwege?
+
+Met vriendelijke groeten,
+
+Ilias
