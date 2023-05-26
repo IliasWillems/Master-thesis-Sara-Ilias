@@ -1,9 +1,11 @@
+# the original data can be found at: https://www.upjohn.org/data-tools/employment-research-data-center/national-jtpa-study
+# The function used to clean the data can be found at: https://github.com/GillesCrommen/DCC
 
 # Clear workspace
 rm(list = ls())
 
 # Load necessary packages, functions and data
-fulldata<-read.csv("clean_dataset_JTPA.csv")
+fulldata<-read.csv("Data/clean_dataset_JTPA.csv")
 library(MASS)
 library(nloptr)
 library(numDeriv)
